@@ -10,8 +10,9 @@ No network, no Salus account and no API key are needed.
 - **Write-up:** [docs/WRITEUP.md](docs/WRITEUP.md), covering the design, the failure scenarios and the trade-offs.
 - **Contract:** [docs/decide-contract.md](docs/decide-contract.md), covering what Salus documents and what it leaves
   out.
-- **Interactive presentation:** [artifact/index.html](artifact/index.html) (open it in a browser). It has an overview and a
-  technical deep dive with per-scenario traces, built from the saved results by `node artifact/build.ts`.
+- **Interactive presentation:** [yashgix.github.io/salus-bridge/artifact](https://yashgix.github.io/salus-bridge/artifact/)
+  (source: [artifact/index.html](artifact/index.html)). It has an overview and a technical deep dive with per-scenario
+  traces, built from the saved results by `node artifact/build.ts`.
 
 ## The problem
 
