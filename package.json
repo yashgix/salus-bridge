@@ -1,0 +1,15 @@
+{
+  "name": "salus-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Salus Bridge: an independent, unofficial TypeScript integration example for the Salus /v1/decide API. Not affiliated with or endorsed by Salus.",
+  "license": "MIT",
+  "author": "Yash Gupta",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

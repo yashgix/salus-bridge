@@ -1,0 +1,152 @@
+{
+  "seed": 7,
+  "runs": 30,
+  "environment": {
+    "node": "v24.22.2",
+    "mock": true,
+    "note": "Offline. Decisions come from the local in-process mock of /v1/decide (src/decide/mock.ts); no network, no Salus key."
+  },
+  "scenarios": [
+    {
+      "id": "allow_small_refund",
+      "integration": "flawed",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "allow_small_refund",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "escalate_medium_refund",
+      "integration": "flawed",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "escalate_medium_refund",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "block_large_refund",
+      "integration": "flawed",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "block_large_refund",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "bypass_alternate_write",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "bypass_alternate_write",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "args_tampered_after_decision",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "args_tampered_after_decision",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "fail_open_on_timeout",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "fail_open_on_timeout",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "malformed_response",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "malformed_response",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "duplicate_retry",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "duplicate_retry",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "concurrent_duplicate",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "concurrent_duplicate",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    },
+    {
+      "id": "crash_recovery",
+      "integration": "flawed",
+      "invariant_held": false,
+      "runs_violated": 30
+    },
+    {
+      "id": "crash_recovery",
+      "integration": "protected",
+      "invariant_held": true,
+      "runs_violated": 0
+    }
+  ],
+  "summary": {
+    "flawed": {
+      "held": 3,
+      "violated": 7
+    },
+    "protected": {
+      "held": 10,
+      "violated": 0
+    }
+  },
+  "latency_ms": {
+    "measured_against": "local in-process mock only; not real Salus latency",
+    "samples": {
+      "decide": 240,
+      "boundary": 270
+    },
+    "decide_p50": 0.03,
+    "decide_p95": 0.078,
+    "boundary_p50": 0.037,
+    "boundary_p95": 0.107
+  }
+}
