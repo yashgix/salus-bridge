@@ -10,7 +10,8 @@ No network, no Salus account and no API key are needed.
 - **Write-up:** [docs/WRITEUP.md](docs/WRITEUP.md), covering the design, the failure scenarios and the trade-offs.
 - **Contract:** [docs/decide-contract.md](docs/decide-contract.md), covering what Salus documents and what it leaves
   out.
-- **Visual summary:** [artifact/index.html](artifact/index.html), a one-page overview you can open in a browser.
+- **Interactive presentation:** [artifact/index.html](artifact/index.html) (open it in a browser). It has an overview and a
+  technical deep dive with per-scenario traces, built from the saved results by `node artifact/build.ts`.
 
 ## The problem
 
@@ -83,6 +84,7 @@ Other entry points:
 node bench/run.ts --seed 7 --runs 30                # benchmark: prints one JSON object
 node src/mcp/server.ts                              # MCP-style server on stdin/stdout
 node examples/mcp-in-process.ts                     # the server's JSON-RPC handler, driven in-process
+node bench/trace.ts --seed 7                        # what happened in run 1 of each scenario, as JSON
 ```
 
 ## Benchmark summary
@@ -91,7 +93,8 @@ node examples/mcp-in-process.ts                     # the server's JSON-RPC hand
 integrations. Each run uses a fresh world and inputs drawn from a seeded PRNG, and each scenario checks one invariant.
 `invariant_held` is true only if the invariant held in every run; `runs_violated` counts the runs where it did not.
 The results below are from `--seed 7 --runs 30` (saved in
-[docs/results/bench-seed7-runs30.json](docs/results/bench-seed7-runs30.json)):
+[docs/results/bench-seed7-runs30.json](docs/results/bench-seed7-runs30.json); per-scenario traces of run 1 are in
+[docs/results/traces-seed7-run1.json](docs/results/traces-seed7-run1.json)):
 
 | Scenario | Invariant | Flawed | Protected |
 |---|---|---|---|

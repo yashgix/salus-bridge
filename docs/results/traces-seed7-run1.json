@@ -1,0 +1,1518 @@
+{
+ "source": "node bench/trace.ts --seed 7 (run 1 of bench/run.ts --seed 7)",
+ "environment": {
+  "node": "v24.22.2",
+  "mock": true,
+  "note": "Offline. Local in-process mock of /v1/decide; no network, no Salus key."
+ },
+ "traces": [
+  {
+   "id": "allow_small_refund",
+   "integration": "flawed",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "lookup_order",
+     "args_at_call": {
+      "order_id": "ORD-1002"
+     },
+     "result": {
+      "status": "ok",
+      "order": {
+       "order_id": "ORD-1002",
+       "customer_id": "C-2",
+       "amount_minor": 25000,
+       "currency": "USD",
+       "refunded_minor": 0
+      }
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 9543,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 9543,
+      "decided": true
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 9543,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 9543,
+     "idempotency_key": "flawed-1"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 9543
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "allow_small_refund",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "lookup_order",
+     "args_at_call": {
+      "order_id": "ORD-1002"
+     },
+     "result": {
+      "status": "ok",
+      "order": {
+       "order_id": "ORD-1002",
+       "customer_id": "C-2",
+       "amount_minor": 25000,
+       "currency": "USD",
+       "refunded_minor": 0
+      }
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 9543,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": false,
+      "idempotency_key": "refund:ORD-1002:9543:USD"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:9543:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 9543,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:9543:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "07f5d75f0dcab5be01299de8f3d92b0fe58da24827f7f874c835f9a5a53841a9",
+     "decision": "allow"
+    },
+    {
+     "phase": "executed",
+     "idempotency_key": "refund:ORD-1002:9543:USD",
+     "refund_id": "RF-0001",
+     "replayed": false
+    }
+   ],
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 9543,
+     "idempotency_key": "refund:ORD-1002:9543:USD"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 9543
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "escalate_medium_refund",
+   "integration": "flawed",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 13916,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": "escalate",
+      "reason_code": "mock_refund_needs_approval"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 13916,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": null,
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "escalate_medium_refund",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 13916,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": "escalate",
+      "idempotency_key": "refund:ORD-1002:13916:USD",
+      "reason_code": "mock_refund_needs_approval",
+      "human_reason": "Refund needs human approval"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:13916:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 13916,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:13916:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "060de6b029905683ad893c48bacb072cd7c74d3f345fc418da70874040397cde",
+     "decision": "escalate"
+    },
+    {
+     "phase": "not_executed",
+     "idempotency_key": "refund:ORD-1002:13916:USD",
+     "reason": "escalate_pending_human"
+    }
+   ],
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "block_large_refund",
+   "integration": "flawed",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "amount_minor": 80702,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": "block",
+      "reason_code": "mock_refund_over_limit"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1003",
+      "amount_minor": 80702,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": null,
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "block_large_refund",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "amount_minor": 80702,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": "block",
+      "idempotency_key": "refund:ORD-1003:80702:USD",
+      "reason_code": "mock_refund_over_limit",
+      "human_reason": "Refund above the maximum limit"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1003:80702:USD",
+     "args": {
+      "order_id": "ORD-1003",
+      "amount_minor": 80702,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1003:80702:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "8f694565c86b7a724835fe7eb579514003ce09487417efef07552dc531139720",
+     "decision": "block"
+    },
+    {
+     "phase": "not_executed",
+     "idempotency_key": "refund:ORD-1003:80702:USD",
+     "reason": "block"
+    }
+   ],
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "bypass_alternate_write",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "amount_minor": 79783,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": "block",
+      "reason_code": "mock_refund_over_limit"
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "update_order",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "patch": {
+       "refunded_minor": 72343
+      }
+     },
+     "result": {
+      "status": "updated",
+      "order": {
+       "order_id": "ORD-1003",
+       "customer_id": "C-3",
+       "amount_minor": 90000,
+       "currency": "USD",
+       "refunded_minor": 72343
+      }
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1003",
+      "amount_minor": 79783,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": null,
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 72343
+    }
+   ]
+  },
+  {
+   "id": "bypass_alternate_write",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "amount_minor": 79783,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": "block",
+      "idempotency_key": "refund:ORD-1003:79783:USD",
+      "reason_code": "mock_refund_over_limit",
+      "human_reason": "Refund above the maximum limit"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1003:79783:USD",
+     "args": {
+      "order_id": "ORD-1003",
+      "amount_minor": 79783,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1003:79783:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "ae21daf589d0076a8ac1bb17d6b1efc6d97f13c33b0f17ffc089ef92c8c30afb",
+     "decision": "block"
+    },
+    {
+     "phase": "not_executed",
+     "idempotency_key": "refund:ORD-1003:79783:USD",
+     "reason": "block"
+    }
+   ],
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "args_tampered_after_decision",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "amount_minor": 4142,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 64044,
+      "decided": true
+     },
+     "args_after": {
+      "order_id": "ORD-1003",
+      "amount_minor": 64044,
+      "currency": "USD"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1003",
+      "amount_minor": 4142,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1003",
+     "amount_minor": 64044,
+     "idempotency_key": "flawed-1"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 64044
+    }
+   ]
+  },
+  {
+   "id": "args_tampered_after_decision",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1003",
+      "amount_minor": 4142,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": false,
+      "idempotency_key": "refund:ORD-1003:4142:USD"
+     },
+     "args_after": {
+      "order_id": "ORD-1003",
+      "amount_minor": 64044,
+      "currency": "USD"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1003:4142:USD",
+     "args": {
+      "order_id": "ORD-1003",
+      "amount_minor": 4142,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1003:4142:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "c09bc56e92a67a1fadfa9f54534f8d48662800fbd76f0a070fb508f3e609f9c2",
+     "decision": "allow"
+    },
+    {
+     "phase": "executed",
+     "idempotency_key": "refund:ORD-1003:4142:USD",
+     "refund_id": "RF-0001",
+     "replayed": false
+    }
+   ],
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1003",
+     "amount_minor": 4142,
+     "idempotency_key": "refund:ORD-1003:4142:USD"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 4142
+    }
+   ]
+  },
+  {
+   "id": "fail_open_on_timeout",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [
+    {
+     "kind": "timeout",
+     "count": 2
+    }
+   ],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 16918,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 16918,
+      "decided": false
+     }
+    }
+   ],
+   "decide_requests": [],
+   "policy_evaluations": 0,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 16918,
+     "idempotency_key": "flawed-1"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 16918
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "fail_open_on_timeout",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [
+    {
+     "kind": "timeout",
+     "count": 2
+    }
+   ],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 16918,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": null,
+      "error": "timeout",
+      "idempotency_key": "refund:ORD-1002:16918:USD"
+     }
+    }
+   ],
+   "decide_requests": [],
+   "policy_evaluations": 0,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:16918:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "d3e98aae34e3ef4111ea24a44b4f359b3b6ac998743d74cfa3bda3680163b402",
+     "decision": null
+    },
+    {
+     "phase": "not_executed",
+     "idempotency_key": "refund:ORD-1002:16918:USD",
+     "reason": "decide_error:timeout"
+    }
+   ],
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "malformed_response",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [
+    {
+     "kind": "malformed",
+     "count": 1
+    }
+   ],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 2978,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 2978,
+      "decided": false
+     }
+    }
+   ],
+   "decide_requests": [],
+   "policy_evaluations": 0,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 2978,
+     "idempotency_key": "flawed-1"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 2978
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "malformed_response",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [
+    {
+     "kind": "malformed",
+     "count": 1
+    }
+   ],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 2978,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "action_not_executed",
+      "decision": null,
+      "error": "malformed",
+      "idempotency_key": "refund:ORD-1002:2978:USD"
+     }
+    }
+   ],
+   "decide_requests": [],
+   "policy_evaluations": 0,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:2978:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "8264fbdee05d4b0bf7cd90dd904ea3184c34f48047663632b05c814cd9c4db95",
+     "decision": null
+    },
+    {
+     "phase": "not_executed",
+     "idempotency_key": "refund:ORD-1002:2978:USD",
+     "reason": "decide_error:malformed"
+    }
+   ],
+   "refunds_paid": [],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "duplicate_retry",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 3572,
+      "decided": true
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0002",
+      "amount_minor": 3572,
+      "decided": true
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     }
+    },
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-2",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 2,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 3572,
+     "idempotency_key": "flawed-1"
+    },
+    {
+     "refund_id": "RF-0002",
+     "order_id": "ORD-1002",
+     "amount_minor": 3572,
+     "idempotency_key": "flawed-2"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 7144
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "duplicate_retry",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": false,
+      "idempotency_key": "refund:ORD-1002:3572:USD"
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": true,
+      "idempotency_key": "refund:ORD-1002:3572:USD"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:3572:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     }
+    },
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:3572:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 3572,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:3572:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "6d8e800491ecc830111f9ba35ee9a5a4278be51ded21f995d015a5e4de60498c",
+     "decision": "allow"
+    },
+    {
+     "phase": "executed",
+     "idempotency_key": "refund:ORD-1002:3572:USD",
+     "refund_id": "RF-0001",
+     "replayed": false
+    },
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:3572:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "6d8e800491ecc830111f9ba35ee9a5a4278be51ded21f995d015a5e4de60498c",
+     "decision": "allow"
+    },
+    {
+     "phase": "executed",
+     "idempotency_key": "refund:ORD-1002:3572:USD",
+     "refund_id": "RF-0001",
+     "replayed": true
+    }
+   ],
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 3572,
+     "idempotency_key": "refund:ORD-1002:3572:USD"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 3572
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "concurrent_duplicate",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 5230,
+      "decided": true
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0002",
+      "amount_minor": 5230,
+      "decided": true
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     }
+    },
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-2",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 2,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 5230,
+     "idempotency_key": "flawed-1"
+    },
+    {
+     "refund_id": "RF-0002",
+     "order_id": "ORD-1002",
+     "amount_minor": 5230,
+     "idempotency_key": "flawed-2"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 10460
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "concurrent_duplicate",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": false,
+      "idempotency_key": "refund:ORD-1002:5230:USD"
+     }
+    },
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": false,
+      "idempotency_key": "refund:ORD-1002:5230:USD"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:5230:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5230,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:5230:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "f8e92c13aa98370fbec381a8daf34ea180fba1c2bb75a6e49537fb79f6ba74d5",
+     "decision": "allow"
+    },
+    {
+     "phase": "executed",
+     "idempotency_key": "refund:ORD-1002:5230:USD",
+     "refund_id": "RF-0001",
+     "replayed": false
+    }
+   ],
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 5230,
+     "idempotency_key": "refund:ORD-1002:5230:USD"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 5230
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "crash_recovery",
+   "integration": "flawed",
+   "invariant_held": false,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     },
+     "threw": true
+    },
+    {
+     "process": "process 2 (restarted)",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "amount_minor": 5923,
+      "decided": true
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     }
+    },
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "flawed-1",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": null,
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 5923,
+     "idempotency_key": "flawed-1"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 5923
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  },
+  {
+   "id": "crash_recovery",
+   "integration": "protected",
+   "invariant_held": true,
+   "faults_injected": [],
+   "tool_calls": [
+    {
+     "process": "process 1",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "execution_failed",
+      "idempotency_key": "refund:ORD-1002:5923:USD"
+     }
+    },
+    {
+     "process": "process 2 (restarted)",
+     "tool": "issue_refund",
+     "args_at_call": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     },
+     "result": {
+      "status": "executed",
+      "refund_id": "RF-0001",
+      "replayed": true,
+      "idempotency_key": "refund:ORD-1002:5923:USD"
+     }
+    }
+   ],
+   "decide_requests": [
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:5923:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     }
+    },
+    {
+     "tool_name": "issue_refund",
+     "idempotency_key": "refund:ORD-1002:5923:USD",
+     "args": {
+      "order_id": "ORD-1002",
+      "amount_minor": 5923,
+      "currency": "USD"
+     }
+    }
+   ],
+   "policy_evaluations": 1,
+   "audit": [
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:5923:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "4179ab838bf423a0c19b4a6423b707c9ea5012db501e5df3e7a55aaaac92243c",
+     "decision": "allow"
+    },
+    {
+     "phase": "not_executed",
+     "idempotency_key": "refund:ORD-1002:5923:USD",
+     "reason": "provider_error_outcome_unknown"
+    },
+    {
+     "phase": "decided",
+     "idempotency_key": "refund:ORD-1002:5923:USD",
+     "tool_name": "issue_refund",
+     "args_sha256": "4179ab838bf423a0c19b4a6423b707c9ea5012db501e5df3e7a55aaaac92243c",
+     "decision": "allow"
+    },
+    {
+     "phase": "executed",
+     "idempotency_key": "refund:ORD-1002:5923:USD",
+     "refund_id": "RF-0001",
+     "replayed": true
+    }
+   ],
+   "refunds_paid": [
+    {
+     "refund_id": "RF-0001",
+     "order_id": "ORD-1002",
+     "amount_minor": 5923,
+     "idempotency_key": "refund:ORD-1002:5923:USD"
+    }
+   ],
+   "orders_after": [
+    {
+     "order_id": "ORD-1001",
+     "amount_minor": 4500,
+     "refunded_minor": 0
+    },
+    {
+     "order_id": "ORD-1002",
+     "amount_minor": 25000,
+     "refunded_minor": 5923
+    },
+    {
+     "order_id": "ORD-1003",
+     "amount_minor": 90000,
+     "refunded_minor": 0
+    }
+   ]
+  }
+ ]
+}

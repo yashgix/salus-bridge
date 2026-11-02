@@ -3,348 +3,671 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Set the public repository URL here once it exists. Empty = the link is shown as "not yet published". -->
+<!-- Public repository URL. Leave empty until github.com/yashgix/salus-bridge exists; links then show as "not yet published". -->
 <meta name="repo-url" content="">
-<title>Salus Bridge: one boundary between an agent and the side effect</title>
-<meta name="description" content="An independent, offline TypeScript example for Salus's documented /v1/decide API: a deliberately flawed integration, a corrected execution boundary, and a seeded benchmark.">
+<title>Salus Bridge</title>
+<meta name="description" content="An independent engineering study of the execution boundary around Salus's documented /v1/decide API: a deliberately flawed integration, a corrected boundary, and a seeded benchmark against a local mock.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
 <style>
-/* One reading column on warm paper, white cards, one muted teal accent; red-brown only for violations. Light theme. */
+/* Engineering case study: cool paper, white panels, one slate-teal accent; green/red only for held/violated, amber only
+   for "local mock". Text column ~42rem; diagrams and tables use the wider 66rem frame. Single light theme by choice. */
 :root {
-  --bg: #f4f2ed; --surface: #ffffff; --ink: #1d1d1b; --muted: #5d5b55; --rule: #e0ddd5;
-  --accent: #2f6f6a; --accent-ink: #25605b; --accent-soft: #e6efed;
-  --miss: #9a3b26; --miss-soft: #f6e4de;
-  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-  --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --paper: #f5f6f4; --surface: #ffffff; --ink: #17212b; --muted: #53606b; --line: #dde2e5;
+  --accent: #1d5c70; --accent-soft: #e3edf1;
+  --held: #1f6a50; --held-soft: #e2f1e9; --viol: #a3392a; --viol-soft: #f8e4df; --mock: #7a5b12; --mock-soft: #f6eed8;
+  --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1.02rem; line-height: 1.6; padding: 0 16px 4rem; }
-.wrap { max-width: 50rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3rem; }
-a { color: var(--accent-ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
-a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
-h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.2; margin: 0; text-wrap: balance; }
-h1 { font-size: clamp(2rem, 5.5vw, 2.9rem); letter-spacing: -0.01em; }
-h2 { font-size: 1.6rem; }
-h3 { font-size: 1.08rem; font-family: var(--body); font-weight: 700; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: 1.6; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { margin: 0; line-height: 1.2; text-wrap: balance; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.01em; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 1.55rem; }
+h3 { font-size: 1.02rem; font-weight: 600; }
 p { margin: 0; }
-ul { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
-code { font-family: var(--mono); font-size: 0.84em; background: var(--accent-soft); padding: 0.05em 0.35em; border-radius: 3px; overflow-wrap: anywhere; }
-section { display: flex; flex-direction: column; gap: 1.1rem; scroll-margin-top: 1rem; }
-.label { font-family: var(--mono); font-size: 0.76rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent-ink); display: flex; align-items: center; gap: 0.55rem; }
-.label::before { content: ""; width: 0.55rem; height: 0.55rem; background: var(--accent); border-radius: 50%; flex: none; }
+ul, ol { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.35rem; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--accent-soft); padding: 0.05em 0.35em; border-radius: 3px; overflow-wrap: anywhere; }
 .muted { color: var(--muted); }
 .small { font-size: 0.9rem; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* frame */
+.bar { position: sticky; top: 0; z-index: 5; background: rgba(245, 246, 244, 0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 66rem; margin: 0 auto; padding: 0.6rem 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
+.brand { font-family: var(--display); font-weight: 600; font-size: 1.15rem; margin-right: auto; }
+.tabs { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.tab { font: 500 0.92rem var(--body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 0.5rem 1rem; min-height: 40px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent); color: #fff; }
+.gh { font: 500 0.88rem var(--mono); text-decoration: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 0.45rem 0.9rem; min-height: 40px; display: inline-flex; align-items: center; gap: 0.4rem; }
+.gh.pending, .lnk.pending { border-style: dashed; color: var(--muted); border-color: var(--line); cursor: default; }
+main { max-width: 66rem; margin: 0 auto; padding: 0 16px 4rem; }
+.view { display: flex; flex-direction: column; gap: 3rem; padding-top: 2rem; }
+.view[hidden] { display: none; }
+section { display: flex; flex-direction: column; gap: 1rem; scroll-margin-top: 4.5rem; }
+.text { max-width: 42rem; }
+.kicker { font: 500 0.76rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 0.8rem; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.8rem; }
 
 /* header */
-header { padding-top: 3.2rem; display: flex; flex-direction: column; gap: 1rem; }
-.eyebrow { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
-.dek { font-size: 1.18rem; color: var(--muted); max-width: 42rem; }
-.byline { font-family: var(--mono); font-size: 0.86rem; color: var(--muted); }
-.actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
-.btn { font-family: var(--mono); font-size: 0.84rem; text-decoration: none; border-radius: 999px; padding: 0.45rem 0.95rem; border: 1px solid var(--rule); background: var(--surface); color: var(--accent-ink); }
-.btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.btn.primary.pending { background: var(--surface); color: var(--muted); border-style: dashed; cursor: default; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 0.6rem; }
-.stat { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.15rem; }
-.stat b { font-family: var(--display); font-size: 1.7rem; font-weight: 600; line-height: 1.1; }
-.stat span { font-size: 0.86rem; color: var(--muted); }
-.stat.good b { color: var(--accent-ink); }
-.stat.bad b { color: var(--miss); }
+.hero { display: flex; flex-direction: column; gap: 0.9rem; }
+.dek { font-size: 1.12rem; color: var(--muted); max-width: 44rem; }
+.attrib { font: 0.85rem var(--mono); color: var(--muted); }
+.flags { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.flag { font: 500 0.76rem var(--mono); border-radius: 4px; padding: 0.2rem 0.55rem; }
+.f-mock { background: var(--mock-soft); color: var(--mock); }
+.f-ind { background: var(--accent-soft); color: var(--accent); }
+.thesis { font-family: var(--display); font-weight: 600; font-size: 1.28rem; line-height: 1.45; border-left: 3px solid var(--accent); padding-left: 1rem; max-width: 46rem; }
+.points { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0.7rem; }
+.points .panel { display: flex; flex-direction: column; gap: 0.3rem; }
+.points b { font-size: 0.95rem; }
+.points span { font-size: 0.9rem; color: var(--muted); }
 
-.thesis { font-family: var(--display); font-size: 1.28rem; line-height: 1.45; border-left: 3px solid var(--accent); padding-left: 1rem; }
-.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
-.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 0.8rem; }
-.card h3 .tag { margin-left: 0.4rem; }
-blockquote { margin: 0; border-left: 2px solid var(--rule); padding-left: 0.75rem; font-size: 0.95rem; }
-blockquote cite { display: block; font-style: normal; font-family: var(--mono); font-size: 0.74rem; color: var(--muted); margin-top: 0.15rem; }
-.tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.12rem 0.45rem; border-radius: 3px; white-space: nowrap; vertical-align: middle; }
-.t-doc { color: var(--accent-ink); background: var(--accent-soft); }
-.t-ours { color: var(--muted); background: #ecebe6; }
-
-/* architecture flow (HTML, so it reflows on small screens) */
-.flow { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; }
-.lane { display: grid; grid-template-columns: 0.8fr auto 1.25fr auto 1fr auto 1.15fr; align-items: stretch; gap: 0.45rem; }
-.node { border: 1px solid var(--rule); background: var(--bg); border-radius: 6px; padding: 0.6rem 0.7rem; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-.node strong { font-size: 0.93rem; }
-.node span { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); line-height: 1.4; }
-.node.key { border-color: var(--accent); background: var(--accent-soft); }
-.node.key strong { color: var(--accent-ink); }
-.arrow { align-self: center; color: var(--accent); font-family: var(--mono); font-size: 1.1rem; text-align: center; }
-.branch { display: grid; grid-template-rows: 1fr 1fr; gap: 0.45rem; }
-.node.ok { border-color: var(--accent); }
-.node.no { border-color: var(--rule); }
-.audit { border: 1px dashed var(--accent); border-radius: 6px; padding: 0.55rem 0.7rem; font-family: var(--mono); font-size: 0.78rem; color: var(--accent-ink); background: var(--bg); }
-.flow-note { font-size: 0.86rem; color: var(--muted); }
-@media (max-width: 44rem) {
-  .lane { grid-template-columns: 1fr; }
-  .arrow { transform: rotate(90deg); line-height: 1; }
+/* architecture: sequence diagram, 5 lanes; stacks to cards below 46rem */
+.lanes-row { display: contents; }
+.arch-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: 500 0.88rem var(--body); border: 0; background: none; color: var(--muted); padding: 0.5rem 0.9rem; min-height: 40px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.seq { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 0.35rem; column-gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 0.6rem; position: relative; }
+.lane { grid-row: 1; text-align: center; font: 600 0.86rem var(--body); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.4rem; margin: 0 0.3rem 0.4rem; color: var(--ink); cursor: pointer; min-height: 44px; }
+.lane small { display: block; font: 400 0.72rem var(--mono); color: var(--muted); }
+.lane[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.lifeline { grid-row: 2 / 11; justify-self: center; width: 0; border-left: 1px dashed #c9d0d4; pointer-events: none; }
+.msg { font: inherit; text-align: left; background: none; border: 0; padding: 0.15rem 0.3rem 0.35rem; min-height: 40px; justify-content: center; cursor: pointer; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; color: var(--ink); border-radius: 6px; position: relative; z-index: 1; }
+.msg:hover .lbl, .msg[aria-pressed="true"] .lbl { color: var(--accent); }
+.msg[aria-pressed="true"] { background: rgba(29, 92, 112, 0.06); }
+.lbl { font: 0.8rem var(--mono); line-height: 1.35; }
+.lbl .n { display: inline-block; min-width: 1.35rem; font-weight: 500; color: var(--accent); }
+.wire { height: 0; border-top: 2px solid var(--ink); position: relative; margin: 0.2rem 0.1rem 0; }
+.wire::after { content: ""; position: absolute; top: -6px; right: -2px; border: 5px solid transparent; border-left: 8px solid var(--ink); }
+.rtl .wire::after { right: auto; left: -2px; border-left-color: transparent; border-right: 8px solid var(--ink); }
+.self .wire { display: none; }
+.self .lbl { background: var(--accent-soft); border-radius: 6px; padding: 0.35rem 0.45rem; }
+.msg.off { opacity: 0.32; }
+.msg.off .wire { border-top-style: dashed; }
+.msg.danger .wire { border-top-color: var(--viol); }
+.msg.danger .wire::after { border-left-color: var(--viol); }
+.msg.danger .lbl { color: var(--viol); }
+.fnote { display: none; font: 0.74rem var(--mono); color: var(--viol); padding-left: 1.35rem; }
+.msg.changed .fnote { display: block; }
+.detail { border-left: 3px solid var(--accent); }
+.detail h3 { margin-bottom: 0.25rem; }
+.detail .refs { margin-top: 0.5rem; font: 0.8rem var(--mono); color: var(--muted); }
+@media (max-width: 46rem) {
+  .seq { grid-template-columns: 1fr; padding: 0.7rem; row-gap: 0.5rem; }
+  .lanes-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .lane { grid-row: auto; grid-column: auto !important; margin: 0; }
+  .lifeline { display: none; }
+  .msg { grid-column: 1 !important; grid-row: auto !important; border: 1px solid var(--line); background: var(--paper); padding: 0.55rem 0.7rem; min-height: 44px; }
+  .msg .route { display: block; }
+  .wire { display: none; }
 }
+.route { display: none; font: 500 0.72rem var(--mono); color: var(--muted); letter-spacing: 0.03em; }
 
-/* flawed vs protected */
-.vs { display: flex; flex-direction: column; gap: 0.55rem; }
-.vs-head, .vs-row { display: grid; grid-template-columns: 9.5rem 1fr 1fr; gap: 0.55rem; }
-.vs-head div { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 0.2rem; }
-.vs-row > div { min-width: 0; border-radius: 6px; padding: 0.6rem 0.75rem; font-size: 0.92rem; }
-.vs-row .what { font-weight: 700; padding-left: 0.2rem; }
-.vs-row .bad { background: var(--miss-soft); border-left: 3px solid var(--miss); }
-.vs-row .good { background: var(--accent-soft); border-left: 3px solid var(--accent); }
-.vs-row .k { display: none; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
-@media (max-width: 40rem) {
-  .vs-head { display: none; }
-  .vs-row { grid-template-columns: 1fr; gap: 0.35rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
-  .vs-row .k { display: block; }
-  .vs-row .bad .k { color: var(--miss); } .vs-row .good .k { color: var(--accent-ink); }
-}
+/* scenario demo */
+.picker { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.chipbtn { font: 500 0.86rem var(--body); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 0.45rem 0.85rem; min-height: 40px; cursor: pointer; }
+.chipbtn[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 0.8rem; }
+.side { border-radius: 10px; padding: 0.95rem 1rem; display: flex; flex-direction: column; gap: 0.55rem; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
+.side.bad { border-top: 4px solid var(--viol); }
+.side.good { border-top: 4px solid var(--held); }
+.side-h { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.facts { list-style: none; padding: 0; gap: 0.4rem; font-size: 0.92rem; }
+.facts li { display: grid; grid-template-columns: 6.6rem 1fr; gap: 0.6rem; }
+.facts .k { font: 0.74rem var(--mono); letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); padding-top: 0.15rem; }
+.facts .v { min-width: 0; overflow-wrap: anywhere; }
+.verdict { font: 500 0.74rem var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+.v-held { background: var(--held-soft); color: var(--held); }
+.v-viol { background: var(--viol-soft); color: var(--viol); }
+.why { font-size: 0.95rem; }
 
 /* benchmark */
-.table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
-table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
-th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--rule); }
-tr:last-child td { border-bottom: 0; }
-th { font-family: var(--mono); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-td code { background: none; padding: 0; font-size: 0.82rem; white-space: nowrap; overflow-wrap: normal; }
-td.inv { color: var(--muted); font-size: 0.86rem; }
-.chip { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.12rem 0.45rem; border-radius: 3px; white-space: nowrap; }
-.held { color: var(--accent-ink); background: var(--accent-soft); }
-.violated { color: var(--miss); background: var(--miss-soft); font-weight: 600; }
-.strip { display: grid; grid-template-columns: 7rem 1fr auto; align-items: center; gap: 0.7rem; }
-.cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; max-width: 22rem; }
-.cells i { display: block; height: 1.05rem; border-radius: 3px; background: var(--accent); }
-.cells i.v { background: var(--miss); }
-.strip .name { font-family: var(--mono); font-size: 0.82rem; }
-.strip .count { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
-.strip .cells { min-width: 10rem; }
+.bench { display: flex; flex-direction: column; gap: 0.8rem; }
+.strip { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 0.8rem; align-items: center; }
+.strip .name { font: 500 0.86rem var(--mono); }
+.strip .count { font: 0.86rem var(--mono); color: var(--muted); white-space: nowrap; }
+.cells { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.cells i { height: 1.35rem; border-radius: 3px; background: var(--held); }
+.cells i.v { background: var(--viol); }
+.big { display: flex; flex-wrap: wrap; gap: 0.8rem 2rem; align-items: baseline; }
+.big div { display: flex; flex-direction: column; }
+.big b { font: 600 2rem var(--display); line-height: 1.1; }
+.big .g { color: var(--held); } .big .r { color: var(--viol); }
+.big span { font-size: 0.86rem; color: var(--muted); }
+.note-mock { background: var(--mock-soft); color: #4e3b0b; border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
 @media (max-width: 40rem) {
-  .strip { grid-template-columns: 1fr auto; row-gap: 0.35rem; }
-  .strip .cells { grid-column: 1 / -1; grid-row: 2; max-width: none; }
-  .inv { display: none; }
-  td code { white-space: normal; }
-  th, td { padding: 0.5rem 0.55rem; }
+  .strip { grid-template-columns: 1fr auto; row-gap: 0.3rem; }
+  .strip .cells { grid-column: 1 / -1; grid-row: 2; }
 }
-.config { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.4rem 1rem; font-size: 0.88rem; }
-.config div { display: flex; flex-direction: column; }
-.config .k { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.config .v { font-family: var(--mono); }
-.warn { border-left: 3px solid var(--miss); background: var(--miss-soft); border-radius: 0 6px 6px 0; padding: 0.55rem 0.8rem; font-size: 0.9rem; }
 
-.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 0.7rem; }
-.grid3 .card { gap: 0.35rem; }
-.grid3 p { font-size: 0.92rem; }
+.cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem; }
+.links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.lnk { font: 500 0.86rem var(--mono); text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--accent); border-radius: 8px; padding: 0.45rem 0.8rem; min-height: 40px; display: inline-flex; align-items: center; }
+.lnk.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.lnk.primary.pending { background: var(--surface); }
 
-pre { margin: 0; background: #1f2421; color: #e9ece9; border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-family: var(--mono); font-size: 0.82rem; line-height: 1.6; }
-pre .c { color: #9fb3ac; }
-.links { list-style: none; padding: 0; gap: 0.3rem; font-size: 0.92rem; }
-footer { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+/* deep dive */
+.scen { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: 1rem; align-items: start; }
+.slist { list-style: none; padding: 0; gap: 0.3rem; position: sticky; top: 4.6rem; }
+.sbtn { width: 100%; text-align: left; font: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.65rem; cursor: pointer; display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; min-height: 44px; }
+.sbtn .sid { font: 0.78rem var(--mono); overflow-wrap: anywhere; min-width: 0; }
+.sbtn .dots { display: inline-flex; gap: 3px; flex: none; }
+.sbtn .dots i { width: 0.6rem; height: 0.6rem; border-radius: 2px; background: var(--held); }
+.sbtn .dots i.v { background: var(--viol); }
+.sbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--ink); }
+.sdetail { display: flex; flex-direction: column; gap: 0.9rem; min-width: 0; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 0.6rem; }
+.meta div { display: flex; flex-direction: column; gap: 0.15rem; }
+.meta .k { font: 0.72rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.trace { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 0.8rem; }
+.tl { list-style: none; padding: 0; gap: 0; }
+.tl li { display: grid; grid-template-columns: 5.4rem minmax(0, 1fr); gap: 0.55rem; padding: 0.45rem 0; border-top: 1px solid var(--line); font-size: 0.86rem; }
+.tl li:first-child { border-top: 0; }
+.tl .k { font: 500 0.7rem var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); padding-top: 0.12rem; }
+.tl .v { min-width: 0; }
+.tl pre { margin: 0.2rem 0 0; font: 0.76rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: normal; word-break: normal; overflow-x: auto; background: var(--paper); border-radius: 6px; padding: 0.4rem 0.5rem; }
+.tl .warn { color: var(--viol); }
+.tl .ok { color: var(--held); }
+@media (max-width: 52rem) {
+  .scen { grid-template-columns: 1fr; }
+  .slist { position: static; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0.35rem; }
+}
+.code { margin: 0; background: #18222b; color: #e6ebee; border-radius: 8px; padding: 0.8rem 0.9rem; font: 0.78rem/1.55 var(--mono); overflow-x: auto; }
+.code .c { color: #93a8b4; }
+.cap { font-size: 0.84rem; color: var(--muted); }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 0.72rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+td:first-child { font-weight: 600; }
+.phase { font: 0.78rem var(--mono); border-radius: 4px; padding: 0.1rem 0.4rem; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.srcs { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 0.4rem 1rem; font-size: 0.92rem; }
+footer { max-width: 66rem; margin: 0 auto; padding: 1.2rem 16px 2.5rem; border-top: 1px solid var(--line); font: 0.82rem var(--mono); color: var(--muted); display: flex; flex-direction: column; gap: 0.35rem; }
+@media (max-width: 40rem) {
+  .bar { position: static; }
+  .bar-in { gap: 0.5rem; }
+  .gh { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: no-preference) { .tab, .chipbtn, .sbtn, .msg, .lane { transition: background-color 120ms, color 120ms, border-color 120ms; } }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <p class="eyebrow">Engineering note · Independent, unofficial · Not affiliated with or endorsed by Salus</p>
-  <h1>Salus Bridge: one boundary between an agent and the side effect</h1>
-  <p class="dek">A small, offline TypeScript example for Salus's documented <code>/v1/decide</code> API. It pairs a deliberately flawed integration with a corrected execution boundary, and a seeded benchmark measures the difference.</p>
-  <p class="byline">Yash Gupta · November 2026 · MIT licensed</p>
-  <div class="actions">
-    <a class="btn primary" data-repo href="#" aria-describedby="repo-note">GitHub repository</a>
-    <a class="btn" href="../README.md">README</a>
-    <a class="btn" href="../docs/WRITEUP.md">Technical write-up</a>
-    <a class="btn" href="https://docs.usesalus.ai/docs/cloud-custom">Salus docs</a>
-  </div>
-  <p id="repo-note" class="small muted" hidden></p>
-  <div class="stats" aria-label="Key results">
-    <div class="stat good"><b>10 / 10</b><span>invariants held by the protected boundary</span></div>
-    <div class="stat bad"><b>7 / 10</b><span>invariants violated by the flawed integration</span></div>
-    <div class="stat"><b>30</b><span>seeded runs per scenario (seed 7)</span></div>
-    <div class="stat"><b>39 · 0</b><span>tests passing · network calls made</span></div>
+<header class="bar">
+  <div class="bar-in">
+    <span class="brand">Salus Bridge</span>
+    <div class="tabs" role="tablist" aria-label="Level of detail">
+      <button class="tab" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true">Overview</button>
+      <button class="tab" role="tab" id="tab-deep-dive" aria-controls="deep-dive" aria-selected="false" tabindex="-1">Technical deep dive</button>
+    </div>
+    <a class="gh" data-link="repo" href="#">GitHub repository</a>
   </div>
 </header>
 
-<section id="thesis">
-  <p class="label">The thesis</p>
-  <p class="thesis">An authorization decision only protects the actions that actually pass through it. Authorization fails when a side effect can happen without it: by a second write path, with arguments that change after the decision, when the decision fails, or twice when a call is retried.</p>
-  <p>So the hard part of integrating a policy engine is not the API call. It is the <strong>execution boundary</strong>: the one place that turns an <code>allow</code> into exactly one effect, for exactly the action that was decided, and nothing otherwise.</p>
-</section>
+<main>
+<!-- ============================== OVERVIEW ============================== -->
+<div class="view" id="overview" role="tabpanel" aria-labelledby="tab-overview">
 
-<section id="salus">
-  <p class="label">What Salus documents, and what is ours</p>
-  <div class="two">
-    <div class="card">
-      <h3>Salus <span class="tag t-doc">official docs</span></h3>
-      <blockquote>"Salus authorizes consequential agent actions before execution."<cite>Overview</cite></blockquote>
-      <blockquote>"If some tool calls hit Salus and others do not, you no longer have a trustworthy control plane."<cite>Integration</cite></blockquote>
-      <blockquote>"Fail closed on Salus timeout/error, block on a missing policy…"<cite>Hosted launch tutorial</cite></blockquote>
-      <ul class="small">
-        <li><code>POST /v1/decide</code> takes <code>tool_name</code>, <code>args</code> and a required <code>idempotency_key</code>, and returns <code>allow</code>, <code>block</code> or <code>escalate</code>.</li>
-        <li>Raw <code>decide_only</code> verdicts are "advisory". Hard enforcement is the SDK wrapper or Salus's proxy. TypeScript support is "coming soon".</li>
-      </ul>
+  <section class="hero" aria-label="Summary">
+    <div class="flags">
+      <span class="flag f-ind">Independent, unofficial · not affiliated with or endorsed by Salus</span>
+      <span class="flag f-mock">Runs against a local mock of /v1/decide · never the live Salus service</span>
     </div>
-    <div class="card">
-      <h3>This example <span class="tag t-ours">ours</span></h3>
-      <ul class="small">
-        <li>A TypeScript client for the documented request and response, which <strong>fails closed</strong> on anything undocumented.</li>
-        <li>A <strong>local mock</strong> of <code>/v1/decide</code>. Its refund thresholds, replay and fault injection are our assumptions, labelled in code.</li>
-        <li>A <strong>client-side</strong> boundary around an advisory decision. It is not Salus's enforcement and not an SDK.</li>
-        <li>A scripted, deterministic agent (no LLM), a synthetic CRM, and an MCP-style stdio server (no compatibility claimed).</li>
-        <li>Eight places where the docs are silent are flagged in <a href="../docs/decide-contract.md">decide-contract.md</a>, not invented.</li>
-      </ul>
-    </div>
-  </div>
-</section>
+    <h1>An agent's refund is only as safe as the code that executes it</h1>
+    <p class="dek">An engineering study of the execution boundary around Salus's documented <code>/v1/decide</code> API. A deliberately flawed integration and a corrected one face the same ten scenarios, and a seeded benchmark records which invariants hold.</p>
+    <p class="attrib">Yash Gupta · Independent engineering study · MIT License © 2026</p>
+  </section>
 
-<section id="architecture">
-  <p class="label">Architecture</p>
-  <div class="flow" role="img" aria-label="Agent tool call goes to the protected boundary, which asks the decide client; only allow executes the CRM refund; every step is written to the audit log.">
-    <div class="lane">
-      <div class="node"><strong>Agent</strong><span>scripted tool calls</span></div>
-      <div class="arrow" aria-hidden="true">→</div>
-      <div class="node key"><strong>Tool boundary</strong><span>validate exact args<br>copy + freeze them<br>key = order:amount:currency</span></div>
-      <div class="arrow" aria-hidden="true">→</div>
-      <div class="node"><strong>Decision</strong><span>/v1/decide client<br>→ local mock</span></div>
-      <div class="arrow" aria-hidden="true">→</div>
-      <div class="branch">
-        <div class="node ok"><strong>allow</strong><span>CRM refund, same frozen args + key</span></div>
-        <div class="node no"><strong>anything else</strong><span>not executed</span></div>
+  <section aria-labelledby="h-problem">
+    <p class="kicker">The problem</p>
+    <h2 id="h-problem" class="text">Authorization holds only where side effects pass through it</h2>
+    <p class="thesis">Salus decides whether a proposed agent action should run. That decision protects nothing if the side effect can happen another way, with different arguments, after a failed check, or twice.</p>
+    <div class="points">
+      <div class="panel"><b>A second write path</b><span>Another tool changes the same state with no decision.</span></div>
+      <div class="panel"><b>Arguments that move</b><span>The action executed is not the action that was decided.</span></div>
+      <div class="panel"><b>Fail-open errors</b><span>A timeout or malformed answer is treated as permission.</span></div>
+      <div class="panel"><b>Retries and duplicates</b><span>One intended refund is paid more than once.</span></div>
+    </div>
+    <p class="text muted small">Salus's integration guide states the same principle: "If some tool calls hit Salus and others do not, you no longer have a trustworthy control plane." (<a href="https://docs.usesalus.ai/docs/integration">docs</a>)</p>
+  </section>
+
+  <section aria-labelledby="h-arch">
+    <p class="kicker">Architecture</p>
+    <div class="arch-head">
+      <h2 id="h-arch">One trusted boundary, in a fixed order</h2>
+      <div class="seg" role="group" aria-label="Integration shown in the diagram">
+        <button type="button" data-mode="protected" aria-pressed="true">Corrected boundary</button>
+        <button type="button" data-mode="flawed" aria-pressed="false">Flawed integration</button>
       </div>
     </div>
-    <div class="audit">audit log (append-only): decided → executed | not_executed · written before any effect</div>
-    <p class="flow-note">There is one path to <code>crm.refund</code>, and it is reached only after an explicit <code>allow</code>.</p>
-  </div>
-</section>
-
-<section id="compare">
-  <p class="label">Flawed vs corrected</p>
-  <p>The flawed integration does call Salus. Each flaw below is something that looks reasonable in a code review.</p>
-  <div class="vs">
-    <div class="vs-head"><div>Attack</div><div>Flawed integration</div><div>Protected boundary</div></div>
-    <div class="vs-row"><div class="what">Alternate write path</div><div class="bad"><span class="k">Flawed</span>An <code>update_order</code> tool sets <code>refunded_minor</code> with no decision.</div><div class="good"><span class="k">Protected</span>Only <code>lookup_order</code> and <code>issue_refund</code> exist; <code>update_order</code> is an unknown tool.</div></div>
-    <div class="vs-row"><div class="what">Args changed after decision</div><div class="bad"><span class="k">Flawed</span>Salus approves 2000; the agent edits the object; <strong>80000 is paid</strong>.</div><div class="good"><span class="k">Protected</span>The frozen copy is decided, hashed and paid: 2000.</div></div>
-    <div class="vs-row"><div class="what">Decision fails</div><div class="bad"><span class="k">Flawed</span>On a timeout or error it pays anyway (fail-open).</div><div class="good"><span class="k">Protected</span>Anything but <code>ok + allow</code> means no refund: timeout, 401/409/429/503, malformed, unknown decision.</div></div>
-    <div class="vs-row"><div class="what">Retry or concurrent duplicate</div><div class="bad"><span class="k">Flawed</span>A fresh key per call, so the <strong>retry pays twice</strong>.</div><div class="good"><span class="k">Protected</span>One key from the action, for Salus and the CRM. In-flight calls are shared, and the provider replays.</div></div>
-  </div>
-</section>
-
-<section id="results">
-  <p class="label">Benchmark: 10 invariants, 30 seeded runs each</p>
-  <div class="card">
-    <div class="strip"><span class="name">protected</span><div class="cells" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="count">10 held · 0 violated</span></div>
-    <div class="strip"><span class="name">flawed</span><div class="cells" aria-hidden="true"><i></i><i></i><i></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i></div><span class="count">3 held · 7 violated</span></div>
-  </div>
-  <div class="table-scroll">
-    <table>
-      <thead><tr><th>Scenario</th><th class="inv">Invariant</th><th>Flawed</th><th>Protected</th></tr></thead>
-      <tbody>
-        <tr><td><code>allow_<wbr>small_<wbr>refund</code></td><td class="inv">allowed refund paid once, exact amount</td><td><span class="chip held">held</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>escalate_<wbr>medium_<wbr>refund</code></td><td class="inv">escalate never pays</td><td><span class="chip held">held</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>block_<wbr>large_<wbr>refund</code></td><td class="inv">block never pays</td><td><span class="chip held">held</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>bypass_<wbr>alternate_<wbr>write</code></td><td class="inv">no undecided path changes refund state</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>args_<wbr>tampered_<wbr>after_<wbr>decision</code></td><td class="inv">paid = decided</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>fail_<wbr>open_<wbr>on_<wbr>timeout</code></td><td class="inv">no decision, no payment</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>malformed_<wbr>response</code></td><td class="inv">malformed is not allow</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>duplicate_<wbr>retry</code></td><td class="inv">a retry pays once</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>concurrent_<wbr>duplicate</code></td><td class="inv">simultaneous duplicates pay once</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-        <tr><td><code>crash_<wbr>recovery</code></td><td class="inv">unknown outcome visible after restart; pays once</td><td><span class="chip violated">violated 30/30</span></td><td><span class="chip held">held</span></td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <div class="config">
-      <div><span class="k">Command</span><span class="v">bench/run.ts --seed 7 --runs 30</span></div>
-      <div><span class="k">Environment</span><span class="v">Node 24.22.2 · Apple M4 Pro</span></div>
-      <div><span class="k">Decisions from</span><span class="v">local in-process mock</span></div>
-      <div><span class="k">Reproducible</span><span class="v">same seed → same verdicts</span></div>
-      <div><span class="k">decide p50 / p95</span><span class="v">0.030 / 0.078 ms</span></div>
-      <div><span class="k">boundary p50 / p95</span><span class="v">0.037 / 0.107 ms</span></div>
+    <div class="seq" id="seq" role="group" aria-label="Sequence of one refund through the boundary. Select a lane or a step for details.">
+      <div class="lanes-row">
+        <button type="button" class="lane" data-lane="agent" style="grid-column:1">Agent<small>scripted</small></button>
+        <button type="button" class="lane" data-lane="boundary" style="grid-column:2">Trusted boundary<small>issue_refund</small></button>
+        <button type="button" class="lane" data-lane="decide" style="grid-column:3">/v1/decide<small>local mock</small></button>
+        <button type="button" class="lane" data-lane="audit" style="grid-column:4">Audit log<small>append-only</small></button>
+        <button type="button" class="lane" data-lane="crm" style="grid-column:5">CRM<small>synthetic</small></button>
+      </div>
+      <i class="lifeline" style="grid-column:1"></i><i class="lifeline" style="grid-column:2"></i><i class="lifeline" style="grid-column:3"></i><i class="lifeline" style="grid-column:4"></i><i class="lifeline" style="grid-column:5"></i>
+      <button type="button" class="msg" data-step="1" style="grid-column:1 / 3; grid-row:2"><span class="route">Agent → Boundary</span><span class="lbl"><span class="n">1</span>issue_refund(args)</span><span class="wire"></span></button>
+      <button type="button" class="msg self" data-step="2" style="grid-column:2; grid-row:3" data-flawed-note="flawed: none; keeps the live object"><span class="route">Boundary</span><span class="lbl"><span class="n">2</span>validate exactly 3 fields · copy + freeze · key</span><span class="wire"></span></button>
+      <button type="button" class="msg" data-step="3" style="grid-column:2 / 4; grid-row:4"><span class="route">Boundary → /v1/decide</span><span class="lbl"><span class="n">3</span>POST /v1/decide (timeout, bounded retry)</span><span class="wire"></span></button>
+      <button type="button" class="msg rtl" data-step="4" style="grid-column:2 / 4; grid-row:5" data-flawed-note="flawed: an error means pay anyway"><span class="route">/v1/decide → Boundary</span><span class="lbl"><span class="n">4</span>allow | block | escalate; else fail closed</span><span class="wire"></span></button>
+      <button type="button" class="msg" data-step="5" style="grid-column:2 / 5; grid-row:6" data-flawed-note="flawed: no audit"><span class="route">Boundary → Audit log</span><span class="lbl"><span class="n">5</span>append "decided" before any effect</span><span class="wire"></span></button>
+      <button type="button" class="msg" data-step="6" style="grid-column:2 / 6; grid-row:7" data-flawed-note="flawed: live args, new key per call"><span class="route">Boundary → CRM</span><span class="lbl"><span class="n">6</span>only on allow: refund(frozen args, same key)</span><span class="wire"></span></button>
+      <button type="button" class="msg" data-step="7" style="grid-column:2 / 5; grid-row:8" data-flawed-note="flawed: no audit"><span class="route">Boundary → Audit log</span><span class="lbl"><span class="n">7</span>append outcome: executed | not_executed</span><span class="wire"></span></button>
+      <button type="button" class="msg rtl" data-step="8" style="grid-column:1 / 3; grid-row:9"><span class="route">Boundary → Agent</span><span class="lbl"><span class="n">8</span>structured result</span><span class="wire"></span></button>
+      <button type="button" class="msg off" data-step="9" style="grid-column:1 / 6; grid-row:10"><span class="route">Agent → CRM</span><span class="lbl"><span class="n">!</span>update_order: writes refund state, no decision (flawed only)</span><span class="wire"></span></button>
     </div>
-    <p class="warn"><strong>Local mock measurements only.</strong> The latency is the overhead of our boundary code against an in-process mock on one laptop, and it varies from run to run. It says nothing about real Salus latency. No call to Salus was made.</p>
-  </div>
-</section>
+    <div class="panel detail" id="arch-detail" aria-live="polite"></div>
+  </section>
 
-<section id="mechanics">
-  <p class="label">How the boundary holds</p>
-  <div class="grid3">
-    <div class="card"><h3>Retries</h3><p>The client retries only on 429, 503, timeout and network errors, with the identical body and key and a bounded number of attempts. A <code>Retry-After</code> over 60 s returns the 429 instead of waiting. Each retry is a new proposal to Salus.</p></div>
-    <div class="card"><h3>Idempotency</h3><p>The key <code>refund:{order}:{amount}:{currency}</code> comes from the action alone, and it is sent to Salus and to the CRM. A duplicate is replayed, never paid twice.</p></div>
-    <div class="card"><h3>Argument integrity</h3><p>The boundary accepts exactly three fields (checked with <code>Reflect.ownKeys</code>), then copies and freezes them. The same object is decided, hashed into the audit log and executed.</p></div>
-    <div class="card"><h3>Failure handling</h3><p>If the audit log can't record the decision, nothing runs. <code>escalate</code> means not executed, pending a human, and approval leads to a re-decided retry.</p></div>
-    <div class="card"><h3>Crash recovery</h3><p>The provider can fail after paying. The key then stays pending in the append-only log. After a restart the retry is replayed by the CRM, so the refund is paid once in total.</p></div>
-    <div class="card"><h3>Evidence</h3><p>39 tests: 32 acceptance tests, 4 <code>Retry-After</code> tests, 1 determinism test, and a 2-part type check against a pinned compiler.</p></div>
-  </div>
-</section>
+  <section aria-labelledby="h-demo">
+    <p class="kicker">Failure scenarios</p>
+    <h2 id="h-demo">Same agent, same mock decisions, different boundary</h2>
+    <div class="picker" id="demo-picker" role="group" aria-label="Choose a failure scenario"></div>
+    <div id="demo-out" aria-live="polite"></div>
+    <p class="cap">Recorded from run 1 of <code>node bench/run.ts --seed 7</code> (reproduce with <code>node bench/trace.ts --seed 7</code>). Amounts are synthetic refunds in USD.</p>
+  </section>
 
-<section id="limits">
-  <p class="label">Trade-offs, limits, and what production needs</p>
-  <div class="two">
-    <div class="card">
-      <h3>Deliberate trade-offs and limits</h3>
-      <ul class="small">
-        <li><strong>Client-side enforcement:</strong> it is only as strong as the guarantee that the agent cannot reach the CRM another way.</li>
-        <li><strong>The key comes from the action:</strong> two genuinely separate identical refunds look like one.</li>
-        <li><strong>In-flight sharing is per process;</strong> across processes, provider idempotency does the work.</li>
-        <li><strong>The audit log is local:</strong> append-only by API, not tamper-evident, one writer.</li>
-        <li><strong>Not covered:</strong> a real LLM, a real Salus account, network calls, MCP-client compatibility.</li>
-      </ul>
+  <section aria-labelledby="h-bench">
+    <p class="kicker">Benchmark</p>
+    <h2 id="h-bench">Ten invariants, thirty seeded runs each</h2>
+    <div class="panel bench" id="bench-summary"></div>
+    <div class="cta panel">
+      <p class="small">Source, tests, write-up and raw results are in the public repository.</p>
+      <div class="links">
+        <a class="lnk primary" data-link="repo" href="#">GitHub repository</a>
+        <a class="lnk" data-link="readme" href="../README.md">README</a>
+        <a class="lnk" data-link="writeup" href="../docs/WRITEUP.md">Write-up</a>
+        <button type="button" class="lnk" data-goto="deep-dive" style="cursor:pointer">Technical deep dive →</button>
+      </div>
     </div>
-    <div class="card">
-      <h3>A real integration would add</h3>
-      <ul class="small">
-        <li>A Salus runtime key from a secret manager, plus shadow-then-enforce rollout, as the docs describe.</li>
-        <li>The boundary as the only holder of the provider credential, or Salus's SDK wrapper or proxy.</li>
-        <li>Caller-supplied request IDs for idempotency.</li>
-        <li>An escalation approval workflow and outcome reporting to Salus.</li>
-        <li>A durable, tamper-evident audit store and multi-instance coordination.</li>
-      </ul>
+  </section>
+</div>
+
+<!-- ============================== DEEP DIVE ============================== -->
+<div class="view" id="deep-dive" role="tabpanel" aria-labelledby="tab-deep-dive" hidden>
+
+  <section aria-labelledby="h-all">
+    <p class="kicker">All ten scenarios</p>
+    <h2 id="h-all">Evidence per scenario</h2>
+    <p class="text muted small">Each verdict covers 30 seeded runs. The trace is run 1 of seed 7, recorded from the repository's own code: tool calls, the requests the local mock accepted, the audit log, refunds paid, and order state.</p>
+    <div class="scen">
+      <ul class="slist" id="slist" aria-label="Scenarios"></ul>
+      <div class="sdetail" id="sdetail" aria-live="polite"></div>
     </div>
-  </div>
-</section>
+  </section>
 
-<section id="reproduce">
-  <p class="label">Reproduce it (Node 24+, offline after npm ci)</p>
-<pre><span class="c"># installs only the pinned TypeScript compiler</span>
-npm ci
-node --test                                  <span class="c"># 39 tests</span>
-node examples/flawed-vs-protected.ts         <span class="c"># side-by-side demo</span>
-node bench/run.ts --seed 7 --runs 30         <span class="c"># the benchmark above</span>
-node src/mcp/server.ts                       <span class="c"># MCP-style stdio server</span></pre>
-  <ul class="links">
-    <li><a data-repo href="#">GitHub repository</a> <span class="small muted" data-repo-status></span> · <a href="../README.md">README</a> · <a href="../docs/WRITEUP.md">Write-up</a> · <a href="../docs/decide-contract.md">Docs contract</a> · <a href="../docs/results/bench-seed7-runs30.json">Raw benchmark output</a></li>
-  </ul>
-</section>
+  <section aria-labelledby="h-adapter">
+    <p class="kicker">TypeScript adapter</p>
+    <h2 id="h-adapter">The /v1/decide client and decision validation</h2>
+    <div class="grid2">
+      <div class="panel">
+        <ul class="small">
+          <li>Copies only the documented fields (<code>tool_name</code>, <code>tool_id</code>, <code>idempotency_key</code>, <code>agent_id</code>, <code>args</code>, <code>context</code>, <code>fields</code>, <code>mode</code>) when called, then validates that copy. What is validated is what is sent.</li>
+          <li>Refuses locally, with no request, when <code>tool_name</code>, the required <code>idempotency_key</code> or <code>args</code> is missing.</li>
+          <li>A 2xx counts only if <code>decision</code> is exactly <code>allow</code>, <code>block</code> or <code>escalate</code>. Anything else, including <code>revise</code> from the marketing page, is <code>malformed</code>.</li>
+          <li>Retries only on 429, 503, timeouts and network errors, with the same body and key, up to <code>maxAttempts</code>. 400, 401, 403, 404, 409 and 422 are reported, never retried.</li>
+          <li>Never throws, enforces its timeout even if <code>fetch</code> ignores the abort, and redacts the API key from every result.</li>
+        </ul>
+      </div>
+      <div>
+<pre class="code"><span class="c">// src/decide/client.ts (excerpt)</span>
+if (res.status &gt;= 200 &amp;&amp; res.status &lt; 300) {
+  if (!isObject(parsed) || typeof parsed.decision !== "string"
+      || !DECISIONS.includes(parsed.decision)) {
+    return fail({ kind: "malformed", status: res.status }, false);
+  }
+  return { result: toAllowed(parsed), retry: false };
+}
+...
+if (res.status === 503) return fail(error, true);
+<span class="c">// 400, 401, 403, 404, 409, 422 and any other status:</span>
+<span class="c">// reported, never retried.</span>
+return fail(error, false);</pre>
+        <p class="cap">Tests T1.1–T1.12 and four Retry-After tests.</p>
+      </div>
+    </div>
+  </section>
 
-<section id="sources">
-  <p class="label">Official Salus sources (read 2 Nov 2026; docs changelog dated 2 Sep 2026)</p>
-  <ul class="links">
-    <li><a href="https://docs.usesalus.ai/docs/overview">Overview</a> · <a href="https://docs.usesalus.ai/docs/integration">Integration</a> · <a href="https://docs.usesalus.ai/docs/cloud-custom">Custom integration and decide-only</a> · <a href="https://docs.usesalus.ai/docs/cloud-api">API reference</a></li>
-    <li><a href="https://docs.usesalus.ai/docs/hosted-launch">Hosted launch tutorial</a> · <a href="https://docs.usesalus.ai/docs/security-and-rollout">Security and rollout</a> · <a href="https://docs.usesalus.ai/docs/quickstart">Quickstart</a> · <a href="https://usesalus.ai">usesalus.ai</a></li>
-  </ul>
-</section>
+  <section aria-labelledby="h-boundary">
+    <p class="kicker">Trusted boundary and audit</p>
+    <h2 id="h-boundary">What the corrected boundary guarantees, and how</h2>
+    <div class="grid2">
+      <div>
+<pre class="code"><span class="c">// src/integrations/protected.ts (excerpt)</span>
+const args = copyRefundArgs(raw);   <span class="c">// exactly 3 own keys, frozen</span>
+if (!args) return { status: "rejected", reason: "invalid_arguments" };
+const key = refundIdempotencyKey(args);
+let shared = inFlight.get(key);      <span class="c">// concurrent identical calls</span>
+if (!shared) {
+  const started = decideThenExecute(args, key)
+    .finally(() =&gt; inFlight.delete(key));
+  inFlight.set(key, started);
+  shared = started;
+}
+return shared.then((r) =&gt; ({ ...r }));</pre>
+      </div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Audit entry</th><th>When</th><th>Fields</th></tr></thead>
+          <tbody>
+            <tr><td><span class="phase">decided</span></td><td>after the decision, before any effect; if it cannot be written, nothing executes</td><td class="small"><code>idempotency_key</code>, <code>tool_name</code>, <code>args_sha256</code>, <code>decision</code></td></tr>
+            <tr><td><span class="phase">executed</span></td><td>after the CRM confirms the refund</td><td class="small"><code>refund_id</code>, <code>replayed</code></td></tr>
+            <tr><td><span class="phase">not_executed</span></td><td>after block, escalate, a decide error, a provider refusal, or a provider error with unknown outcome</td><td class="small"><code>reason</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="text small muted">An allowed key with no <code>executed</code> entry stays in <code>pendingActions()</code>. With a file, the log is append-only JSON lines and a restarted process reads earlier entries; a torn last line is marked, never silently dropped.</p>
+  </section>
+
+  <section aria-labelledby="h-mech">
+    <p class="kicker">Correctness mechanisms</p>
+    <h2 id="h-mech">Retries, idempotency, concurrency, integrity, recovery</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Concern</th><th>What the code does</th><th>Limit</th></tr></thead>
+        <tbody>
+          <tr><td>Retries</td><td>Bounded attempts on 429, 503, timeout and network only; same body and key. <code>Retry-After</code> is honoured; above our 60 s limit the 429 is returned rather than waiting less. Every retry is a new proposal to Salus.</td><td>The retry policy is ours; the docs give none beyond <code>Retry-After</code>.</td></tr>
+          <tr><td>Idempotency</td><td>Key <code>refund:{order_id}:{amount_minor}:{currency}</code>, derived from the action and sent to both the decision and the CRM.</td><td><strong>Action-derived keys merge two genuinely separate refunds of the same order, amount and currency into one.</strong> A real system would key on a caller-supplied request ID.</td></tr>
+          <tr><td>Concurrency</td><td>Identical calls in one process share a single in-flight execution: one decision request, one refund.</td><td>Per process only. Across processes the protection is the provider's idempotency.</td></tr>
+          <tr><td>Argument integrity</td><td>Exactly <code>order_id</code>, <code>amount_minor</code>, <code>currency</code> (checked with <code>Reflect.ownKeys</code>), copied and frozen. The same bytes are decided, hashed and executed.</td><td>Schema is fixed to this one tool.</td></tr>
+          <tr><td>Failure handling</td><td>Anything except <code>ok</code> with <code>allow</code> means no refund. <code>escalate</code> is recorded as not executed, pending a human.</td><td>No approval workflow: the raw-HTTP escalation follow-up is undocumented.</td></tr>
+          <tr><td>Recovery</td><td><strong>Simulated:</strong> the synthetic CRM applies a refund and then throws; a new boundary instance over the same CRM and audit log retries, and the CRM replays the key, so one refund is paid in total.</td><td><strong>Not production crash recovery.</strong> No process was killed, the CRM is in memory, and there is no reconciliation against a real provider.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-trade">
+    <p class="kicker">Trade-offs and open concerns</p>
+    <h2 id="h-trade">What a production integration would still need</h2>
+    <div class="grid3">
+      <div class="panel"><h3>Enforcement location</h3><p class="small">This is client-side enforcement around an advisory decision; the docs describe raw <code>decide_only</code> verdicts as advisory. It holds only if the boundary is the sole holder of the provider credential, or if Salus's SDK wrapper or proxy is used.</p></div>
+      <div class="panel"><h3>Identity and keys</h3><p class="small">Caller-supplied request IDs instead of action-derived keys; a real runtime key from a secret manager; a shadow-then-enforce rollout as the docs describe.</p></div>
+      <div class="panel"><h3>Durability</h3><p class="small">A durable, tamper-evident audit store with multiple writers, provider reconciliation for unknown outcomes, and outcome reporting (the HTTP decision ID field is undocumented).</p></div>
+      <div class="panel"><h3>Escalation</h3><p class="small">An approval workflow. The docs say approval "grants a one-time retry for the same payload"; how a raw HTTP client learns of it is not documented.</p></div>
+      <div class="panel"><h3>Realistic next steps</h3><p class="small">Run the same scenarios against a Salus test workspace in shadow mode (needs an account and key); add a real LLM agent behind the MCP-style server; replace in-flight sharing with a persistent idempotency store.</p></div>
+      <div class="panel"><h3>Out of scope here</h3><p class="small">A real LLM, a real Salus account or key, network calls, MCP-client compatibility, and production hardening. This is a reference example, not an SDK.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-method">
+    <p class="kicker">Method and limits</p>
+    <h2 id="h-method">How the benchmark works</h2>
+    <div class="grid2">
+      <div class="panel">
+        <ul class="small">
+          <li>10 scenarios × 2 integrations × 30 runs. Run <em>r</em> of scenario <em>i</em> uses a mulberry32 PRNG seeded with <code>seed·1000003 + i·10007 + r</code>, so both integrations see identical inputs.</li>
+          <li>Each run builds a fresh world: synthetic CRM, local mock, decide client (20 ms timeout, 2 attempts), audit log in memory.</li>
+          <li>A scenario is "held" only if its invariant held in all 30 runs. Correctness uses no clock and no <code>Math.random</code>, so a seed fixes the verdicts.</li>
+          <li>Decisions come from <strong>our mock's assumptions</strong>: allow up to 10,000 minor units, escalate up to 50,000, block above; same key and arguments replay the first decision.</li>
+        </ul>
+      </div>
+      <div class="panel" id="latency"></div>
+    </div>
+    <p class="text small muted">One known weakness: the <code>args_tampered_after_decision</code> invariant would also hold if nothing were paid. Acceptance test T3.4 separately requires the decided refund to execute.</p>
+  </section>
+
+  <section aria-labelledby="h-src">
+    <p class="kicker">Sources</p>
+    <h2 id="h-src">Documentation and repository</h2>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Official Salus documentation</h3>
+        <p class="cap">Read 2 Nov 2026; docs changelog dated 2 Sep 2026.</p>
+        <ul class="srcs">
+          <li><a href="https://docs.usesalus.ai/docs/overview">Overview</a></li>
+          <li><a href="https://docs.usesalus.ai/docs/integration">Integration</a></li>
+          <li><a href="https://docs.usesalus.ai/docs/cloud-custom">Custom integration, decide-only</a></li>
+          <li><a href="https://docs.usesalus.ai/docs/cloud-api">API reference</a></li>
+          <li><a href="https://docs.usesalus.ai/docs/hosted-launch">Hosted launch tutorial</a></li>
+          <li><a href="https://docs.usesalus.ai/docs/security-and-rollout">Security and rollout</a></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>This repository</h3>
+        <p class="cap">What Salus documents and the eight gaps we found are in the contract file.</p>
+        <ul class="srcs">
+          <li><a data-link="readme" href="../README.md">README</a></li>
+          <li><a data-link="writeup" href="../docs/WRITEUP.md">Technical write-up</a></li>
+          <li><a data-link="contract" href="../docs/decide-contract.md">Docs contract and gaps</a></li>
+          <li><a data-link="src" href="../src/">Source</a></li>
+          <li><a data-link="bench" href="../docs/results/bench-seed7-runs30.json">Raw benchmark output</a></li>
+          <li><a data-link="traces" href="../docs/results/traces-seed7-run1.json">Raw traces</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
 
 <footer>
-  <p>Salus Bridge is an independent, unofficial reference example. It is not affiliated with or endorsed by Salus, and it makes no claim about flaws in Salus's product: the flawed integration is our own deliberately unsafe code.</p>
-  <p>Built by Yash Gupta with supervised AI coding agents (Claude Code to implement, OpenAI Codex to review), against acceptance tests written first. Every result above was re-run independently. MIT License © 2026 Yash Gupta.</p>
+  <p>Yash Gupta · Independent engineering study · MIT License © 2026</p>
+  <p>Salus Bridge is independent and unofficial. It is not affiliated with or endorsed by Salus and reports no vulnerability in Salus; the flawed integration is our own deliberately unsafe code. All results come from a local mock.</p>
+  <p id="link-note"></p>
 </footer>
 
-</div>
+<!-- Embedded data, generated from docs/results/bench-seed7-runs30.json and docs/results/traces-seed7-run1.json. -->
+<script type="application/json" id="data">{"bench":{"seed":7,"runs":30,"environment":{"node":"v24.22.2","mock":true,"note":"Offline. Decisions come from the local in-process mock of /v1/decide (src/decide/mock.ts); no network, no Salus key."},"scenarios":[{"id":"allow_small_refund","integration":"flawed","invariant_held":true,"runs_violated":0},{"id":"allow_small_refund","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"escalate_medium_refund","integration":"flawed","invariant_held":true,"runs_violated":0},{"id":"escalate_medium_refund","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"block_large_refund","integration":"flawed","invariant_held":true,"runs_violated":0},{"id":"block_large_refund","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"bypass_alternate_write","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"bypass_alternate_write","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"args_tampered_after_decision","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"args_tampered_after_decision","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"fail_open_on_timeout","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"fail_open_on_timeout","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"malformed_response","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"malformed_response","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"duplicate_retry","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"duplicate_retry","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"concurrent_duplicate","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"concurrent_duplicate","integration":"protected","invariant_held":true,"runs_violated":0},{"id":"crash_recovery","integration":"flawed","invariant_held":false,"runs_violated":30},{"id":"crash_recovery","integration":"protected","invariant_held":true,"runs_violated":0}],"summary":{"flawed":{"held":3,"violated":7},"protected":{"held":10,"violated":0}},"latency_ms":{"measured_against":"local in-process mock only; not real Salus latency","samples":{"decide":240,"boundary":270},"decide_p50":0.03,"decide_p95":0.078,"boundary_p50":0.037,"boundary_p95":0.107},"machine":"Apple M4 Pro"},"traces":[{"id":"allow_small_refund","integration":"flawed","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"lookup_order","args_at_call":{"order_id":"ORD-1002"},"result":{"status":"ok","order":{"order_id":"ORD-1002","customer_id":"C-2","amount_minor":25000,"currency":"USD","refunded_minor":0}}},{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":9543,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":9543,"decided":true}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1002","amount_minor":9543,"currency":"USD"}}],"policy_evaluations":1,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":9543,"idempotency_key":"flawed-1"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":9543},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"allow_small_refund","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"lookup_order","args_at_call":{"order_id":"ORD-1002"},"result":{"status":"ok","order":{"order_id":"ORD-1002","customer_id":"C-2","amount_minor":25000,"currency":"USD","refunded_minor":0}}},{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":9543,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":false,"idempotency_key":"refund:ORD-1002:9543:USD"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:9543:USD","args":{"order_id":"ORD-1002","amount_minor":9543,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:9543:USD","tool_name":"issue_refund","args_sha256":"07f5d75f0dcab5be01299de8f3d92b0fe58da24827f7f874c835f9a5a53841a9","decision":"allow"},{"phase":"executed","idempotency_key":"refund:ORD-1002:9543:USD","refund_id":"RF-0001","replayed":false}],"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":9543,"idempotency_key":"refund:ORD-1002:9543:USD"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":9543},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"escalate_medium_refund","integration":"flawed","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":13916,"currency":"USD"},"result":{"status":"action_not_executed","decision":"escalate","reason_code":"mock_refund_needs_approval"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1002","amount_minor":13916,"currency":"USD"}}],"policy_evaluations":1,"audit":null,"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"escalate_medium_refund","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":13916,"currency":"USD"},"result":{"status":"action_not_executed","decision":"escalate","idempotency_key":"refund:ORD-1002:13916:USD","reason_code":"mock_refund_needs_approval","human_reason":"Refund needs human approval"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:13916:USD","args":{"order_id":"ORD-1002","amount_minor":13916,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:13916:USD","tool_name":"issue_refund","args_sha256":"060de6b029905683ad893c48bacb072cd7c74d3f345fc418da70874040397cde","decision":"escalate"},{"phase":"not_executed","idempotency_key":"refund:ORD-1002:13916:USD","reason":"escalate_pending_human"}],"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"block_large_refund","integration":"flawed","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1003","amount_minor":80702,"currency":"USD"},"result":{"status":"action_not_executed","decision":"block","reason_code":"mock_refund_over_limit"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1003","amount_minor":80702,"currency":"USD"}}],"policy_evaluations":1,"audit":null,"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"block_large_refund","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1003","amount_minor":80702,"currency":"USD"},"result":{"status":"action_not_executed","decision":"block","idempotency_key":"refund:ORD-1003:80702:USD","reason_code":"mock_refund_over_limit","human_reason":"Refund above the maximum limit"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1003:80702:USD","args":{"order_id":"ORD-1003","amount_minor":80702,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1003:80702:USD","tool_name":"issue_refund","args_sha256":"8f694565c86b7a724835fe7eb579514003ce09487417efef07552dc531139720","decision":"block"},{"phase":"not_executed","idempotency_key":"refund:ORD-1003:80702:USD","reason":"block"}],"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"bypass_alternate_write","integration":"flawed","invariant_held":false,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1003","amount_minor":79783,"currency":"USD"},"result":{"status":"action_not_executed","decision":"block","reason_code":"mock_refund_over_limit"}},{"process":"process 1","tool":"update_order","args_at_call":{"order_id":"ORD-1003","patch":{"refunded_minor":72343}},"result":{"status":"updated","order":{"order_id":"ORD-1003","customer_id":"C-3","amount_minor":90000,"currency":"USD","refunded_minor":72343}}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1003","amount_minor":79783,"currency":"USD"}}],"policy_evaluations":1,"audit":null,"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":72343}]},{"id":"bypass_alternate_write","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1003","amount_minor":79783,"currency":"USD"},"result":{"status":"action_not_executed","decision":"block","idempotency_key":"refund:ORD-1003:79783:USD","reason_code":"mock_refund_over_limit","human_reason":"Refund above the maximum limit"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1003:79783:USD","args":{"order_id":"ORD-1003","amount_minor":79783,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1003:79783:USD","tool_name":"issue_refund","args_sha256":"ae21daf589d0076a8ac1bb17d6b1efc6d97f13c33b0f17ffc089ef92c8c30afb","decision":"block"},{"phase":"not_executed","idempotency_key":"refund:ORD-1003:79783:USD","reason":"block"}],"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"args_tampered_after_decision","integration":"flawed","invariant_held":false,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1003","amount_minor":4142,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":64044,"decided":true},"args_after":{"order_id":"ORD-1003","amount_minor":64044,"currency":"USD"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1003","amount_minor":4142,"currency":"USD"}}],"policy_evaluations":1,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1003","amount_minor":64044,"idempotency_key":"flawed-1"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":64044}]},{"id":"args_tampered_after_decision","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1003","amount_minor":4142,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":false,"idempotency_key":"refund:ORD-1003:4142:USD"},"args_after":{"order_id":"ORD-1003","amount_minor":64044,"currency":"USD"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1003:4142:USD","args":{"order_id":"ORD-1003","amount_minor":4142,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1003:4142:USD","tool_name":"issue_refund","args_sha256":"c09bc56e92a67a1fadfa9f54534f8d48662800fbd76f0a070fb508f3e609f9c2","decision":"allow"},{"phase":"executed","idempotency_key":"refund:ORD-1003:4142:USD","refund_id":"RF-0001","replayed":false}],"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1003","amount_minor":4142,"idempotency_key":"refund:ORD-1003:4142:USD"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":4142}]},{"id":"fail_open_on_timeout","integration":"flawed","invariant_held":false,"faults_injected":[{"kind":"timeout","count":2}],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":16918,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":16918,"decided":false}}],"decide_requests":[],"policy_evaluations":0,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":16918,"idempotency_key":"flawed-1"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":16918},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"fail_open_on_timeout","integration":"protected","invariant_held":true,"faults_injected":[{"kind":"timeout","count":2}],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":16918,"currency":"USD"},"result":{"status":"action_not_executed","decision":null,"error":"timeout","idempotency_key":"refund:ORD-1002:16918:USD"}}],"decide_requests":[],"policy_evaluations":0,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:16918:USD","tool_name":"issue_refund","args_sha256":"d3e98aae34e3ef4111ea24a44b4f359b3b6ac998743d74cfa3bda3680163b402","decision":null},{"phase":"not_executed","idempotency_key":"refund:ORD-1002:16918:USD","reason":"decide_error:timeout"}],"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"malformed_response","integration":"flawed","invariant_held":false,"faults_injected":[{"kind":"malformed","count":1}],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":2978,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":2978,"decided":false}}],"decide_requests":[],"policy_evaluations":0,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":2978,"idempotency_key":"flawed-1"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":2978},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"malformed_response","integration":"protected","invariant_held":true,"faults_injected":[{"kind":"malformed","count":1}],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":2978,"currency":"USD"},"result":{"status":"action_not_executed","decision":null,"error":"malformed","idempotency_key":"refund:ORD-1002:2978:USD"}}],"decide_requests":[],"policy_evaluations":0,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:2978:USD","tool_name":"issue_refund","args_sha256":"8264fbdee05d4b0bf7cd90dd904ea3184c34f48047663632b05c814cd9c4db95","decision":null},{"phase":"not_executed","idempotency_key":"refund:ORD-1002:2978:USD","reason":"decide_error:malformed"}],"refunds_paid":[],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":0},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"duplicate_retry","integration":"flawed","invariant_held":false,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":3572,"decided":true}},{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0002","amount_minor":3572,"decided":true}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"}},{"tool_name":"issue_refund","idempotency_key":"flawed-2","args":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"}}],"policy_evaluations":2,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":3572,"idempotency_key":"flawed-1"},{"refund_id":"RF-0002","order_id":"ORD-1002","amount_minor":3572,"idempotency_key":"flawed-2"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":7144},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"duplicate_retry","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":false,"idempotency_key":"refund:ORD-1002:3572:USD"}},{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":true,"idempotency_key":"refund:ORD-1002:3572:USD"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:3572:USD","args":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"}},{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:3572:USD","args":{"order_id":"ORD-1002","amount_minor":3572,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:3572:USD","tool_name":"issue_refund","args_sha256":"6d8e800491ecc830111f9ba35ee9a5a4278be51ded21f995d015a5e4de60498c","decision":"allow"},{"phase":"executed","idempotency_key":"refund:ORD-1002:3572:USD","refund_id":"RF-0001","replayed":false},{"phase":"decided","idempotency_key":"refund:ORD-1002:3572:USD","tool_name":"issue_refund","args_sha256":"6d8e800491ecc830111f9ba35ee9a5a4278be51ded21f995d015a5e4de60498c","decision":"allow"},{"phase":"executed","idempotency_key":"refund:ORD-1002:3572:USD","refund_id":"RF-0001","replayed":true}],"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":3572,"idempotency_key":"refund:ORD-1002:3572:USD"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":3572},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"concurrent_duplicate","integration":"flawed","invariant_held":false,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":5230,"decided":true}},{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0002","amount_minor":5230,"decided":true}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"}},{"tool_name":"issue_refund","idempotency_key":"flawed-2","args":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"}}],"policy_evaluations":2,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":5230,"idempotency_key":"flawed-1"},{"refund_id":"RF-0002","order_id":"ORD-1002","amount_minor":5230,"idempotency_key":"flawed-2"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":10460},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"concurrent_duplicate","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":false,"idempotency_key":"refund:ORD-1002:5230:USD"}},{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":false,"idempotency_key":"refund:ORD-1002:5230:USD"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:5230:USD","args":{"order_id":"ORD-1002","amount_minor":5230,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:5230:USD","tool_name":"issue_refund","args_sha256":"f8e92c13aa98370fbec381a8daf34ea180fba1c2bb75a6e49537fb79f6ba74d5","decision":"allow"},{"phase":"executed","idempotency_key":"refund:ORD-1002:5230:USD","refund_id":"RF-0001","replayed":false}],"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":5230,"idempotency_key":"refund:ORD-1002:5230:USD"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":5230},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"crash_recovery","integration":"flawed","invariant_held":false,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"},"threw":true},{"process":"process 2 (restarted)","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","amount_minor":5923,"decided":true}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"}},{"tool_name":"issue_refund","idempotency_key":"flawed-1","args":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"}}],"policy_evaluations":1,"audit":null,"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":5923,"idempotency_key":"flawed-1"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":5923},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]},{"id":"crash_recovery","integration":"protected","invariant_held":true,"faults_injected":[],"tool_calls":[{"process":"process 1","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"},"result":{"status":"execution_failed","idempotency_key":"refund:ORD-1002:5923:USD"}},{"process":"process 2 (restarted)","tool":"issue_refund","args_at_call":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"},"result":{"status":"executed","refund_id":"RF-0001","replayed":true,"idempotency_key":"refund:ORD-1002:5923:USD"}}],"decide_requests":[{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:5923:USD","args":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"}},{"tool_name":"issue_refund","idempotency_key":"refund:ORD-1002:5923:USD","args":{"order_id":"ORD-1002","amount_minor":5923,"currency":"USD"}}],"policy_evaluations":1,"audit":[{"phase":"decided","idempotency_key":"refund:ORD-1002:5923:USD","tool_name":"issue_refund","args_sha256":"4179ab838bf423a0c19b4a6423b707c9ea5012db501e5df3e7a55aaaac92243c","decision":"allow"},{"phase":"not_executed","idempotency_key":"refund:ORD-1002:5923:USD","reason":"provider_error_outcome_unknown"},{"phase":"decided","idempotency_key":"refund:ORD-1002:5923:USD","tool_name":"issue_refund","args_sha256":"4179ab838bf423a0c19b4a6423b707c9ea5012db501e5df3e7a55aaaac92243c","decision":"allow"},{"phase":"executed","idempotency_key":"refund:ORD-1002:5923:USD","refund_id":"RF-0001","replayed":true}],"refunds_paid":[{"refund_id":"RF-0001","order_id":"ORD-1002","amount_minor":5923,"idempotency_key":"refund:ORD-1002:5923:USD"}],"orders_after":[{"order_id":"ORD-1001","amount_minor":4500,"refunded_minor":0},{"order_id":"ORD-1002","amount_minor":25000,"refunded_minor":5923},{"order_id":"ORD-1003","amount_minor":90000,"refunded_minor":0}]}]}</script>
 <script>
-  // The repository link comes from <meta name="repo-url">. Until it is set, the page says so instead of guessing a URL.
-  (function () {
-    var url = (document.querySelector('meta[name="repo-url"]') || {}).content || "";
-    var links = document.querySelectorAll("[data-repo]");
-    var note = document.getElementById("repo-note");
-    if (/^https:\/\/github\.com\//.test(url)) {
-      links.forEach(function (a) { a.href = url; });
-      return;
-    }
-    links.forEach(function (a) {
-      a.removeAttribute("href"); a.setAttribute("aria-disabled", "true"); a.classList.add("pending");
-      a.textContent = "GitHub repository (not yet published)";
+(function () {
+  "use strict";
+  var DATA = JSON.parse(document.getElementById("data").textContent);
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var usd = function (minor) { return "$" + (minor / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var j = function (o) { return esc(JSON.stringify(o, null, 1).replace(/\n\s*/g, " ")); };
+
+  /* ---------- links: GitHub when published; relative files when opened from the repo; otherwise marked pending ---------- */
+  var repo = ($('meta[name="repo-url"]') || {}).content || "";
+  var published = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(repo);
+  repo = repo.replace(/\/$/, "");
+  var local = location.protocol === "file:" || /\.github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  var gh = { repo: repo, readme: repo + "#readme", writeup: repo + "/blob/main/docs/WRITEUP.md", contract: repo + "/blob/main/docs/decide-contract.md",
+    src: repo + "/tree/main/src", bench: repo + "/blob/main/docs/results/bench-seed7-runs30.json", traces: repo + "/blob/main/docs/results/traces-seed7-run1.json" };
+  $$("[data-link]").forEach(function (a) {
+    var k = a.getAttribute("data-link");
+    if (published) { a.href = gh[k]; return; }
+    if (local && k !== "repo") return;            // keep the relative path to the file in this repository
+    a.removeAttribute("href"); a.classList.add("pending"); a.setAttribute("aria-disabled", "true");
+    if (k === "repo") a.textContent = "GitHub repository (not yet published)";
+  });
+  if (!published) $("#link-note").textContent = "The public repository link will be added when github.com/yashgix/salus-bridge is published.";
+
+  /* ---------- views (#overview, #deep-dive) ---------- */
+  var tabs = $$(".tab");
+  function show(id, focus) {
+    if (id !== "overview" && id !== "deep-dive") id = "overview";
+    tabs.forEach(function (t) { var on = t.getAttribute("aria-controls") === id; t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+    $$(".view").forEach(function (v) { v.hidden = v.id !== id; });
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { var id = t.getAttribute("aria-controls"); if (location.hash !== "#" + id) location.hash = id; show(id); window.scrollTo(0, 0); });
+    t.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.click(); n.focus(); e.preventDefault();
     });
-    document.querySelectorAll("[data-repo-status]").forEach(function (s) { s.textContent = "(link added at publication)"; });
-    if (note) { note.hidden = false; note.textContent = "The public repository link will be added when it is published. Until then, this page sits next to the README in the project folder."; }
-  })();
+  });
+  $$("[data-goto]").forEach(function (b) { b.addEventListener("click", function () { $("#tab-" + b.getAttribute("data-goto")).click(); }); });
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
+  show(location.hash.slice(1));
+
+  /* ---------- architecture diagram ---------- */
+  var LANES = {
+    agent: ["Agent (scripted)", "A deterministic list of tool calls; no LLM. A tamper hook can change its arguments while a call is running, to model an agent that changes its mind or is manipulated.", "src/agent/scripted.ts · T2.2"],
+    boundary: ["Trusted boundary", "The only code path to crm.refund. It validates and freezes the arguments, derives the key, asks for a decision, writes the audit log and executes only on allow. The flawed integration has none of this.", "src/integrations/protected.ts · T3.1–T3.9"],
+    decide: ["/v1/decide (local mock)", "Our TypeScript client talks to an in-process mock through an injected fetch: no sockets, no Salus key, never the live service. The mock's thresholds, replay and fault injection are our assumptions.", "src/decide/client.ts, src/decide/mock.ts · T1.1–T1.12"],
+    audit: ["Audit log", "Append-only. The decision entry is written before any effect; the outcome entry after. Keys that were allowed but never executed stay pending.", "src/integrations/audit.ts · T3.8, T3.9"],
+    crm: ["Synthetic CRM", "Made-up orders and refunds in memory, with provider-side idempotency: a repeated key with the same arguments is replayed, never paid twice.", "src/crm/crm.ts · T2.1"]
+  };
+  var STEPS = {
+    "1": ["The agent proposes a refund", "issue_refund({ order_id, amount_minor, currency }). The agent only sees the protected tools: lookup_order and issue_refund.", "Flawed: the same call, but the tool keeps reading the agent's live argument object."],
+    "2": ["Validate, copy, freeze, derive the key", "Exactly three own keys (Reflect.ownKeys), a positive safe-integer amount, a three-letter currency. The copy is frozen and the key is refund:{order_id}:{amount_minor}:{currency}.", "Flawed: no validation and no copy; the key is a per-call counter (flawed-1, flawed-2, …)."],
+    "3": ["Ask for a decision", "POST {base}/decide with tool_name, idempotency_key and the frozen args, mode enforce. Timeout per attempt; retries only on 429, 503, timeout and network errors, with the same body and key.", "Flawed: the same request, built from the live object at call time."],
+    "4": ["Validate the answer", "Only ok with decision exactly allow, block or escalate is a decision. Timeouts, network errors, error statuses and malformed or unknown decisions mean no refund.", "Flawed: a decide error is treated as permission and the refund proceeds (fail-open)."],
+    "5": ["Record the decision first", "A decided entry (key, tool, sha256 of the exact args, decision or null) is appended before anything executes. If it cannot be written, nothing executes.", "Flawed: no audit log."],
+    "6": ["Execute only on allow", "crm.refund receives the frozen args and the same key. Block and escalate never execute.", "Flawed: pays from the live object with a fresh key, so changed arguments and retries go through."],
+    "7": ["Record the outcome", "executed (refund_id, replayed) or not_executed with a reason. If the provider throws, the reason is provider_error_outcome_unknown and the key stays pending.", "Flawed: no audit log, so an unknown outcome is invisible."],
+    "8": ["Return a structured result", "executed, action_not_executed (with the decision), rejected, provider_rejected or execution_failed. The agent can recover from each.", "Flawed: a result is returned, but nothing records the decision or the outcome."],
+    "9": ["The bypass", "update_order writes refunded_minor directly. In the corrected boundary this tool does not exist, so the call returns unknown_tool.", "Flawed: the path exists and needs no decision."]
+  };
+  $$(".msg[data-flawed-note]").forEach(function (m) { var n = document.createElement("span"); n.className = "fnote"; n.textContent = m.getAttribute("data-flawed-note"); m.insertBefore(n, m.querySelector(".wire")); });
+  var mode = "protected", sel = { kind: "step", id: "2" };
+  function renderArch() {
+    $$(".msg").forEach(function (m) {
+      var s = m.getAttribute("data-step"), fl = mode === "flawed";
+      m.classList.toggle("off", s === "9" ? !fl : fl && (s === "5" || s === "7"));
+      m.classList.toggle("danger", fl && s === "9");
+      m.classList.toggle("changed", fl && m.hasAttribute("data-flawed-note"));
+      m.setAttribute("aria-pressed", sel.kind === "step" && sel.id === s);
+    });
+    $$(".lane").forEach(function (l) { l.setAttribute("aria-pressed", sel.kind === "lane" && sel.id === l.getAttribute("data-lane")); });
+    $$(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-mode") === mode); });
+    var d = $("#arch-detail");
+    if (sel.kind === "lane") { var L = LANES[sel.id]; d.innerHTML = "<h3>" + esc(L[0]) + "</h3><p class=\"small\">" + esc(L[1]) + "</p><p class=\"refs\">" + esc(L[2]) + "</p>"; return; }
+    var S = STEPS[sel.id];
+    d.innerHTML = "<h3>" + (sel.id === "9" ? "" : "Step " + sel.id + " · ") + esc(S[0]) + "</h3><p class=\"small\">" + esc(mode === "flawed" ? S[2] : S[1]) + "</p>" +
+      (mode === "flawed" ? "<p class=\"refs\">Corrected: " + esc(S[1]) + "</p>" : "<p class=\"refs\">Flawed integration: " + esc(S[2]) + "</p>");
+  }
+  $$(".msg").forEach(function (m) { m.addEventListener("click", function () { sel = { kind: "step", id: m.getAttribute("data-step") }; renderArch(); }); });
+  $$(".lane").forEach(function (l) { l.addEventListener("click", function () { sel = { kind: "lane", id: l.getAttribute("data-lane") }; renderArch(); }); });
+  $$(".seg button").forEach(function (b) { b.addEventListener("click", function () { mode = b.getAttribute("data-mode"); if (mode === "flawed" && sel.kind === "step" && sel.id === "2") sel = { kind: "step", id: "4" }; renderArch(); }); });
+  renderArch();
+
+  /* ---------- scenario data ---------- */
+  // What each scenario does and checks, written from bench/scenarios.ts, src/integrations/*.ts and the tests.
+  var META = {
+    allow_small_refund: { short: "Allowed refund", title: "An allowed refund", script: "The agent looks up ORD-1002, then asks to refund an amount the mock allows (up to $100.00).", invariant: "An allowed refund is paid exactly once, for exactly the requested amount.", flawed: "Asks, receives allow, pays the requested amount. The happy path works.", protected: "Asks, receives allow, pays the frozen requested amount with the action's key.", tests: "T2.4, T3.2", note: "" },
+    escalate_medium_refund: { short: "Escalation", title: "An escalated refund", script: "The agent asks to refund ORD-1002 an amount the mock escalates ($100.01 to $250.00).", invariant: "escalate never pays; it waits for a human.", flawed: "Receives escalate and does not pay: it respects a valid non-allow decision.", protected: "Records the decision and not_executed (escalate_pending_human); pays nothing.", tests: "T3.3", note: "No approval workflow is modelled, because the raw-HTTP escalation follow-up is not documented." },
+    block_large_refund: { short: "Block", title: "A blocked refund", script: "The agent asks to refund ORD-1003 an amount the mock blocks (above $500.00).", invariant: "block never pays.", flawed: "Receives block and does not pay.", protected: "Records the decision and not_executed (block); pays nothing.", tests: "T3.3", note: "" },
+    bypass_alternate_write: { short: "Bypass write path", title: "A second write path", script: "The agent's large refund is blocked, so it calls update_order to set refunded_minor directly.", invariant: "No path other than a decided refund changes an order's refund state.", flawed: "update_order exists and writes refunded_minor with no decision.", protected: "update_order does not exist, so the call returns unknown_tool and the order is unchanged.", tests: "T2.5, T3.1, T4.1", note: "" },
+    args_tampered_after_decision: { short: "Arguments changed", title: "Arguments changed after the decision", script: "The agent asks for a small, allowed refund on ORD-1003, then changes the amount on the same object while the call is running.", invariant: "What is paid is exactly what was decided.", flawed: "Salus's mock decided the small amount; the tool then read the changed object and paid the large one.", protected: "The arguments were copied and frozen when the call started, so the decided amount is the one paid.", tests: "T2.6, T3.4, T1.12", note: "This invariant would also hold if nothing were paid; T3.4 separately requires the decided refund to execute." },
+    fail_open_on_timeout: { short: "Decision timeout", title: "The decision times out", script: "The mock times out on every attempt (2 attempts, 20 ms client timeout in the benchmark) for a refund it would escalate.", invariant: "No decision means no payment.", flawed: "Treats the timeout as permission and pays (fail-open).", protected: "Fails closed: records decision null and not_executed (decide_error:timeout); pays nothing.", tests: "T2.7, T3.5, T1.7", note: "" },
+    malformed_response: { short: "Malformed answer", title: "A malformed success response", script: "The mock answers 200 with a body that is not a valid decision (an HTML page).", invariant: "A malformed success response is not an allow.", flawed: "Treats the bad answer as no decision and pays anyway.", protected: "The client reports malformed; the boundary fails closed and pays nothing.", tests: "T1.3, T3.5", note: "The mock applies injected faults before it records a request: it answers 200 with an HTML page, so no request shows as accepted." },
+    duplicate_retry: { short: "Retry", title: "The agent retries", script: "The agent calls the same allowed refund twice, one after the other.", invariant: "A retried refund pays once.", flawed: "Each call gets a new key (flawed-1, flawed-2), so both are decided and both are paid.", protected: "Both calls use the action's key. The second is decided again and the CRM replays the first refund.", tests: "T2.8, T3.7, T1.10", note: "The mock answers the repeated key from its first decision. That replay is our mock's assumption, not documented Salus behaviour." },
+    concurrent_duplicate: { short: "Concurrent duplicate", title: "Two identical calls at once", script: "Two agents issue the same allowed refund at the same time.", invariant: "Two simultaneous identical refunds pay once.", flawed: "Two keys, two decisions, two payments.", protected: "The second call joins the first in-flight execution: one decision request, one payment.", tests: "T3.7", note: "In-flight sharing is per process; across processes the provider's idempotency is what prevents a second payment." },
+    crash_recovery: { short: "Unknown outcome", title: "The provider fails after paying", script: "The synthetic CRM applies the refund and then throws, so the caller cannot know whether it was paid. A second boundary instance (a simulated restart over the same CRM and audit log) retries.", invariant: "The unknown outcome is visible after the restart, and the retry pays once in total.", flawed: "The first call throws and nothing records it. Its retry happened to pay once only because its per-call key counter restarted at flawed-1 and collided with the first key.", protected: "Returns execution_failed and leaves the key pending. After the restart the retry is decided again and the CRM replays the refund: one payment, nothing pending.", tests: "T3.9", note: "Simulated recovery: no process is killed and the CRM is in memory. Production recovery would need durable storage and reconciliation with the real provider." }
+  };
+  var TR = {}, BV = {};
+  DATA.traces.forEach(function (t) { TR[t.id + "/" + t.integration] = t; });
+  DATA.bench.scenarios.forEach(function (s) { BV[s.id + "/" + s.integration] = s; });
+  var ORDER = DATA.bench.scenarios.filter(function (s) { return s.integration === "protected"; }).map(function (s) { return s.id; });
+
+  function paidText(t) {
+    if (!t.refunds_paid.length) return "nothing";
+    return t.refunds_paid.map(function (r) { return usd(r.amount_minor) + " on " + r.order_id; }).join(", ");
+  }
+  function requestedText(t) {
+    var first = t.tool_calls.filter(function (c) { return c.tool === "issue_refund"; });
+    if (!first.length) return "—";
+    var a = first[0].args_at_call;
+    return usd(a.amount_minor) + " on " + a.order_id + (first.length > 1 ? " (" + first.length + " calls)" : "");
+  }
+  function verdict(id, integ) {
+    var b = BV[id + "/" + integ];
+    return b.invariant_held ? "<span class=\"verdict v-held\">held 30/30</span>" : "<span class=\"verdict v-viol\">violated " + b.runs_violated + "/30</span>";
+  }
+  function stateLine(t) {
+    var ch = t.orders_after.filter(function (o) { return o.refunded_minor > 0; });
+    return ch.length ? ch.map(function (o) { return o.order_id + " refunded " + usd(o.refunded_minor) + " of " + usd(o.amount_minor); }).join("; ") : "no order changed";
+  }
+  function side(id, integ) {
+    var t = TR[id + "/" + integ], m = META[id];
+    return "<div class=\"side " + (BV[id + "/" + integ].invariant_held ? "good" : "bad") + "\">" +
+      "<div class=\"side-h\"><h3>" + (integ === "flawed" ? "Flawed integration" : "Corrected boundary") + "</h3>" + verdict(id, integ) + "</div>" +
+      "<p class=\"why\">" + esc(m[integ]) + "</p>" +
+      "<ul class=\"facts\"><li><span class=\"k\">Requested</span><span class=\"v num\">" + esc(requestedText(t)) + "</span></li>" +
+      "<li><span class=\"k\">Mock requests</span><span class=\"v num\">" + t.decide_requests.length + " accepted" + (t.faults_injected.length ? " · fault: " + esc(t.faults_injected.map(function (f) { return f.kind + " ×" + f.count; }).join(", ")) : "") + "</span></li>" +
+      "<li><span class=\"k\">Paid</span><span class=\"v num\">" + esc(paidText(t)) + "</span></li>" +
+      "<li><span class=\"k\">Order state</span><span class=\"v num\">" + esc(stateLine(t)) + "</span></li></ul></div>";
+  }
+
+  /* ---------- overview demo ---------- */
+  var DEMO = ["args_tampered_after_decision", "bypass_alternate_write", "fail_open_on_timeout", "duplicate_retry"];
+  var demoSel = DEMO[0];
+  $("#demo-picker").innerHTML = DEMO.map(function (id) { return "<button type=\"button\" class=\"chipbtn\" data-id=\"" + id + "\">" + esc(META[id].short) + "</button>"; }).join("");
+  function renderDemo() {
+    $$("#demo-picker .chipbtn").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-id") === demoSel); });
+    var m = META[demoSel];
+    $("#demo-out").innerHTML = "<p class=\"text\"><strong>" + esc(m.title) + ".</strong> " + esc(m.script) + "</p><div class=\"vs\" style=\"margin-top:0.8rem\">" + side(demoSel, "flawed") + side(demoSel, "protected") + "</div>";
+  }
+  $$("#demo-picker .chipbtn").forEach(function (b) { b.addEventListener("click", function () { demoSel = b.getAttribute("data-id"); renderDemo(); }); });
+  renderDemo();
+
+  /* ---------- benchmark summary ---------- */
+  var sum = DATA.bench.summary;
+  var cells = function (integ) { return ORDER.map(function (id) { return "<i class=\"" + (BV[id + "/" + integ].invariant_held ? "" : "v") + "\" title=\"" + id + "\"></i>"; }).join(""); };
+  $("#bench-summary").innerHTML =
+    "<div class=\"big\"><div><b class=\"g num\">" + sum.protected.held + " / 10</b><span>invariants held by the corrected boundary</span></div>" +
+    "<div><b class=\"r num\">" + sum.flawed.violated + " / 10</b><span>violated by the flawed integration</span></div></div>" +
+    "<div class=\"strip\"><span class=\"name\">corrected</span><div class=\"cells\" aria-hidden=\"true\">" + cells("protected") + "</div><span class=\"count\">" + sum.protected.held + " held · " + sum.protected.violated + " violated</span></div>" +
+    "<div class=\"strip\"><span class=\"name\">flawed</span><div class=\"cells\" aria-hidden=\"true\">" + cells("flawed") + "</div><span class=\"count\">" + sum.flawed.held + " held · " + sum.flawed.violated + " violated</span></div>" +
+    "<p class=\"small muted\">Command <code>node bench/run.ts --seed " + DATA.bench.seed + " --runs " + DATA.bench.runs + "</code> · Node " + esc(DATA.bench.environment.node.replace(/^v/, "")) + " · the same seed gives the same verdicts. Each flawed violation occurred in all 30 runs.</p>" +
+    "<p class=\"note-mock\">All decisions come from a local in-process mock of <code>/v1/decide</code>. No request reached the live Salus service, and no figure here describes Salus's behaviour or performance.</p>";
+
+  /* ---------- deep dive: scenario list and detail ---------- */
+  $("#slist").innerHTML = ORDER.map(function (id) {
+    var f = BV[id + "/flawed"].invariant_held, p = BV[id + "/protected"].invariant_held;
+    return "<li><button type=\"button\" class=\"sbtn\" data-id=\"" + id + "\"><span class=\"sid\">" + esc(id) + "</span><span class=\"dots\" aria-label=\"flawed " + (f ? "held" : "violated") + ", corrected " + (p ? "held" : "violated") + "\"><i class=\"" + (f ? "" : "v") + "\"></i><i class=\"" + (p ? "" : "v") + "\"></i></span></button></li>";
+  }).join("");
+  function traceList(t) {
+    var rows = [];
+    if (t.faults_injected.length) rows.push(["fault", "<span class=\"warn\">mock.failNext(" + esc(t.faults_injected.map(function (f) { return f.kind + ", " + f.count; }).join("; ")) + ")</span>"]);
+    t.tool_calls.forEach(function (c) {
+      var v = "<span class=\"mono small\">" + esc(c.process) + " · " + esc(c.tool) + "</span><pre>" + j(c.args_at_call) + "</pre>";
+      if (c.args_after) v += "<span class=\"warn small\">changed during the call to</span><pre>" + j(c.args_after) + "</pre>";
+      v += c.threw ? "<span class=\"warn small\">threw (the agent records tool_failed)</span>" : "<span class=\"small muted\">result</span><pre>" + j(c.result) + "</pre>";
+      rows.push(["tool call", v]);
+    });
+    rows.push(["mock", t.decide_requests.length ? t.decide_requests.map(function (q) { return "<pre>" + j({ idempotency_key: q.idempotency_key, args: q.args }) + "</pre>"; }).join("") + "<span class=\"small muted\">" + t.policy_evaluations + " policy evaluation(s)</span>" : "<span class=\"small muted\">no request accepted by the mock</span>"]);
+    if (t.audit) rows.push(["audit", t.audit.length ? t.audit.map(function (a) { var o = {}; for (var k in a) if (k !== "args_sha256") o[k] = a[k]; if (a.args_sha256) o.args_sha256 = a.args_sha256.slice(0, 12) + "…"; return "<pre>" + j(o) + "</pre>"; }).join("") : "<span class=\"small muted\">empty</span>"]);
+    else rows.push(["audit", "<span class=\"small muted\">none (the flawed integration keeps no log)</span>"]);
+    rows.push(["paid", "<span class=\"num\">" + esc(paidText(t)) + "</span>" + (t.refunds_paid.length ? "<pre>" + j(t.refunds_paid.map(function (r) { return { refund_id: r.refund_id, amount_minor: r.amount_minor, idempotency_key: r.idempotency_key }; })) + "</pre>" : "")]);
+    rows.push(["state", "<span class=\"num\">" + esc(stateLine(t)) + "</span>"]);
+    return "<ul class=\"tl\">" + rows.map(function (r) { return "<li><span class=\"k\">" + r[0] + "</span><div class=\"v\">" + r[1] + "</div></li>"; }).join("") + "</ul>";
+  }
+  var scSel = "args_tampered_after_decision";
+  function renderScenario() {
+    $$("#slist .sbtn").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-id") === scSel); });
+    var m = META[scSel];
+    $("#sdetail").innerHTML =
+      "<div class=\"panel\"><h3 class=\"mono\" style=\"font-size:0.95rem\">" + esc(scSel) + "</h3><p style=\"margin-top:0.3rem\">" + esc(m.script) + "</p>" +
+      "<div class=\"meta\" style=\"margin-top:0.7rem\"><div><span class=\"k\">Invariant</span><span class=\"small\">" + esc(m.invariant) + "</span></div>" +
+      "<div><span class=\"k\">Flawed · 30 runs</span><span>" + verdict(scSel, "flawed") + "</span></div>" +
+      "<div><span class=\"k\">Corrected · 30 runs</span><span>" + verdict(scSel, "protected") + "</span></div>" +
+      "<div><span class=\"k\">Covered by tests</span><span class=\"small mono\">" + esc(m.tests) + "</span></div></div>" +
+      (m.note ? "<p class=\"small muted\" style=\"margin-top:0.6rem\">" + esc(m.note) + "</p>" : "") + "</div>" +
+      "<div class=\"trace\"><div class=\"side " + (BV[scSel + "/flawed"].invariant_held ? "good" : "bad") + "\"><div class=\"side-h\"><h3>Flawed · trace</h3></div><p class=\"small\">" + esc(m.flawed) + "</p>" + traceList(TR[scSel + "/flawed"]) + "</div>" +
+      "<div class=\"side good\"><div class=\"side-h\"><h3>Corrected · trace</h3></div><p class=\"small\">" + esc(m.protected) + "</p>" + traceList(TR[scSel + "/protected"]) + "</div></div>";
+  }
+  $$("#slist .sbtn").forEach(function (b) { b.addEventListener("click", function () { scSel = b.getAttribute("data-id"); renderScenario(); }); });
+  renderScenario();
+
+  /* ---------- latency (local mock only) ---------- */
+  var L = DATA.bench.latency_ms;
+  $("#latency").innerHTML = "<h3>Latency, local mock only</h3><p class=\"cap\">Overhead of our client and boundary against an in-process mock on one laptop (" + esc(DATA.bench.machine) + ", Node " + esc(DATA.bench.environment.node.replace(/^v/, "")) + "). It varies between runs. <strong>It is not Salus service latency.</strong></p>" +
+    "<div class=\"tbl\" style=\"margin-top:0.6rem\"><table><thead><tr><th>Path</th><th>p50</th><th>p95</th><th>samples</th></tr></thead><tbody>" +
+    "<tr><td>decide client → mock</td><td class=\"num\">" + L.decide_p50.toFixed(3) + " ms</td><td class=\"num\">" + L.decide_p95.toFixed(3) + " ms</td><td class=\"num\">" + L.samples.decide + "</td></tr>" +
+    "<tr><td>protected issue_refund</td><td class=\"num\">" + L.boundary_p50.toFixed(3) + " ms</td><td class=\"num\">" + L.boundary_p95.toFixed(3) + " ms</td><td class=\"num\">" + L.samples.boundary + "</td></tr></tbody></table></div>" +
+    "<p class=\"cap\" style=\"margin-top:0.5rem\">Fault scenarios are excluded from timing.</p>";
+})();
 </script>
 </body>
 </html>
