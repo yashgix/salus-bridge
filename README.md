@@ -32,7 +32,7 @@ trustworthy control plane." This repo makes that concrete:
 ```
 scripted agent ──tool call──▶ integration (flawed │ protected) ──execute──▶ synthetic CRM (refund + idempotency)
                                    │                    │
-                                   │                    └──append──▶ audit log (decided → executed / not_executed)
+                                   │                    └──append──▶ audit log (decided → executed / not_executed / outcome_unknown)
                                    ▼
                           /v1/decide client ──injected fetch──▶ local mock of /v1/decide
 ```
@@ -113,7 +113,7 @@ The protected integration held **10 of 10** invariants; the flawed one held 3 an
 correctness output (`scenarios` and `summary`) is identical: it uses no clock and no `Math.random`.
 
 **Latency is measured against the local in-process mock only.** On an Apple M4 Pro with Node 24.22.2, this run gave
-decide p50 0.030 ms and p95 0.078 ms, and the full protected `issue_refund` p50 0.037 ms and p95 0.107 ms. Timing
+decide p50 0.024 ms and p95 0.085 ms, and the full protected `issue_refund` p50 0.029 ms and p95 0.119 ms. Timing
 varies from run to run, and scenarios with injected faults are left out. **These numbers say nothing about real Salus
 latency.** They only show that the boundary code itself adds very little.
 

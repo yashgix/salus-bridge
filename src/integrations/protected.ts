@@ -140,11 +140,10 @@ export function createProtectedTools(options: { crm: Crm; decide: DecideClient; 
     try {
       refund = crm.refund({ order_id: args.order_id, amount_minor: args.amount_minor, currency: args.currency, idempotency_key });
     } catch {
-      // Outcome unknown (the provider may or may not have applied it). No "executed" entry is written, so the key
-      // shows up in pendingActions(); retrying the same call is safe because the CRM replays on the same key. The
-      // audit phase stays within the contract ("decided" then "executed" or "not_executed"); the reason says the
-      // outcome is unknown.
-      tryAppend({ phase: "not_executed", idempotency_key, reason: "provider_error_outcome_unknown" });
+      // Outcome unknown: the provider threw, so the refund may or may not have been applied. That is recorded as its
+      // own phase, never as "not_executed" (which means confirmed not executed). No "executed" entry is written, so
+      // the key stays in pendingActions(); retrying the same call is safe because the CRM replays on the same key.
+      tryAppend({ phase: "outcome_unknown", idempotency_key, reason: "provider_error" });
       return { status: "execution_failed", idempotency_key };
     }
     if (!refund.ok) {

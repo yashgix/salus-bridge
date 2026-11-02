@@ -71,13 +71,18 @@ It looks reasonable and has four flaws:
 - **Concurrency:** identical calls in the same process share one in-flight execution. A later retry asks Salus
   again ("every retry is a new proposal") and relies on the CRM's idempotency to pay once.
 - **Audit log** (`src/integrations/audit.ts`):
-  - It is append-only JSON lines. A `decided` entry is written before any effect, then `executed` or
-    `not_executed` with a reason.
+  - It is append-only JSON lines. A `decided` entry is written before any effect. Then one of:
+    - `executed` (the CRM confirmed the refund);
+    - `not_executed` with a reason, only when it is certain nothing was paid (block, escalate, a decide error, a
+      provider refusal);
+    - `outcome_unknown` when the provider threw, so the refund may or may not have been applied.
   - A torn last line is detected and marked on restart, never silently dropped.
-- **Recovery:** if the CRM fails after an allow, the outcome is unknown.
-  - The result is `execution_failed`, and the key stays in `pendingActions()`.
+- **Recovery (simulated):** if the CRM throws after an allow, the outcome is unknown.
+  - The result is `execution_failed`, the audit records `outcome_unknown`, and the key stays in `pendingActions()`.
   - A restarted process reading the same file sees it. Retrying the same call pays once in total, because the CRM
     replays on the same key.
+  - This is simulated in one process, with an in-memory CRM. Production recovery would also need durable storage and
+    reconciliation with the real provider.
 
 ## 6. Results
 `node bench/run.ts --seed 7 --runs 30` runs 10 scenarios 30 times each against both integrations. Each run uses a
@@ -99,8 +104,8 @@ fresh world and seeded random inputs. A scenario "held" only if its invariant he
 
 - **Summary:** protected 10 held, 0 violated; flawed 3 held, 7 violated.
 - The correctness output is identical for a given seed.
-- **Boundary overhead against the in-process mock:** decide p50 0.030 ms, p95 0.078 ms; full protected
-  `issue_refund` p50 0.037 ms, p95 0.107 ms. Timing varies from run to run. These numbers are the cost of the
+- **Boundary overhead against the in-process mock:** decide p50 0.024 ms, p95 0.085 ms; full protected
+  `issue_refund` p50 0.029 ms, p95 0.119 ms. Timing varies from run to run. These numbers are the cost of the
   boundary code on one laptop and **say nothing about real Salus latency.**
 
 There are 39 tests:

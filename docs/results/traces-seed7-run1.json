@@ -1470,9 +1470,9 @@
      "decision": "allow"
     },
     {
-     "phase": "not_executed",
+     "phase": "outcome_unknown",
      "idempotency_key": "refund:ORD-1002:5923:USD",
-     "reason": "provider_error_outcome_unknown"
+     "reason": "provider_error"
     },
     {
      "phase": "decided",

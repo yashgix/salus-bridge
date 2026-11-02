@@ -144,9 +144,9 @@
       "decide": 240,
       "boundary": 270
     },
-    "decide_p50": 0.03,
-    "decide_p95": 0.078,
-    "boundary_p50": 0.037,
-    "boundary_p95": 0.107
+    "decide_p50": 0.024,
+    "decide_p95": 0.085,
+    "boundary_p50": 0.029,
+    "boundary_p95": 0.119
   }
 }

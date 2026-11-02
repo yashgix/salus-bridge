@@ -95,7 +95,7 @@ export function createAuditLog(file?: string): AuditLog {
 }
 
 // Idempotency keys that Salus allowed but that have no "executed" entry: the process crashed between the decision and
-// the effect, or the provider call failed (possibly after the effect). Retrying is safe because the same key goes to
+// the effect, or the provider call failed and the outcome is unknown (an "outcome_unknown" entry). Retrying is safe because the same key goes to
 // the provider, whose idempotency replays a refund that did happen. Keys are listed in the order first allowed.
 export function pendingActions(audit: Pick<AuditLog, "entries">): string[] {
   const allowed: string[] = [];

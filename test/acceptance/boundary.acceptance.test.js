@@ -14,10 +14,12 @@
 //     - only { ok: true, decision: "allow" } executes -> { status: "executed", refund_id, replayed, idempotency_key };
 //       block/escalate -> { status: "action_not_executed", decision, reason_code?, human_reason? };
 //       any decide error -> { status: "action_not_executed", decision: null, error: <kind> } (fail closed);
-//       crm.refund throws after an allow -> { status: "execution_failed", idempotency_key } (retry later is safe);
+//       crm.refund throws after an allow -> { status: "execution_failed", idempotency_key }: the outcome is unknown
+//       (the refund may or may not have been applied); retrying later is safe;
 //     - concurrent calls for the same action share one execution;
 //     - audit entries: { phase: "decided", idempotency_key, tool_name, args_sha256, decision } before any effect, then
-//       { phase: "executed", idempotency_key, refund_id } or { phase: "not_executed", idempotency_key, reason }.
+//       { phase: "executed", idempotency_key, refund_id }, or { phase: "not_executed", idempotency_key, reason } when it
+//       is certain nothing was paid, or { phase: "outcome_unknown", idempotency_key, reason } when the provider threw.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -130,7 +132,7 @@ test('T3.7 retries and concurrent duplicates pay once', async () => {
   assert.equal(t.crm.refunds().length, 1);
 });
 
-test('T3.8 audit: decided before effect, then executed or not_executed; append-only copies; hashes of exact args', async () => {
+test('T3.8 audit: decided before effect, then executed, not_executed or outcome_unknown; append-only copies; hashes of exact args', async () => {
   const w = world();
   await w.call('issue_refund', R('ORD-1001', 1000));
   await w.call('issue_refund', R('ORD-1003', 60000));
@@ -153,6 +155,8 @@ test('T3.9 recovery: an allowed refund whose execution failed is pending; after 
   crm.failNextRefund({ afterEffect: true });                  // the refund happened, but the process "crashed" before it knew
   const first = await w.call('issue_refund', R('ORD-1002', 4000));
   assert.equal(first.status, 'execution_failed');
+  // The boundary cannot know whether the refund was applied, so it must not claim "not_executed".
+  assert.deepEqual(w.audit.entries().map((e) => [e.phase, e.reason ?? e.decision]), [['decided', 'allow'], ['outcome_unknown', 'provider_error']]);
   assert.deepEqual(pendingActions(w.audit), ['refund:ORD-1002:4000:USD']);
   const restarted = world({ file, crm });                     // new process, same audit file, same CRM
   assert.deepEqual(pendingActions(restarted.audit), ['refund:ORD-1002:4000:USD']);
@@ -160,12 +164,14 @@ test('T3.9 recovery: an allowed refund whose execution failed is pending; after 
   assert.equal(retry.status, 'executed'); assert.equal(retry.replayed, true);
   assert.equal(crm.refunds().length, 1);
   assert.deepEqual(pendingActions(restarted.audit), []);
+  assert.deepEqual(restarted.audit.entries().map((e) => e.phase), ['decided', 'outcome_unknown', 'decided', 'executed']);
   assert.ok(fs.readFileSync(file, 'utf8').trim().split('\n').every((l) => JSON.parse(l).phase));
 
   const crm2 = createCrm(); const w2 = world({ crm: crm2 });
   crm2.failNextRefund({ afterEffect: false });               // the CRM failed before paying
   assert.equal((await w2.call('issue_refund', R('ORD-1001', 500))).status, 'execution_failed');
   assert.equal(crm2.refunds().length, 0);
+  assert.equal(w2.audit.entries().at(-1).phase, 'outcome_unknown', 'from the boundary, a provider error is an unknown outcome either way');
   assert.equal((await w2.call('issue_refund', R('ORD-1001', 500))).status, 'executed');
   assert.equal(crm2.refunds().length, 1);
 });
